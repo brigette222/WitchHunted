@@ -1,0 +1,84 @@
+﻿title: QuickIntro
+---
+
+Do you want to play the intro?
+
+-> Yes
+    <<jump PlayIntro>>
+-> No
+    Very well...
+    <<jump QuickIntroEnd>>
+
+===
+
+title: PlayIntro
+---
+
+<<fadeToImage "Image1">>
+You once lived in a small pagan village, deep in the forests of Eastern Europe.
+It was the 1300s. Life was quiet — shaped by ritual, sustained by the land, and watched over by old gods.
+
+But the calm began to fracture, and no one dared speak of why.
+One by one, people began to vanish — without struggle, without trace.
+The air grew heavy. What was once warmth between neighbors turned to silence and suspicion.
+
+<<fadeToImage "Image2">>
+One morning, you were sent into the forest to gather herbs, a task you had done a hundred times before.
+
+But when you returned, the village was silent.
+
+<<fadeToImage "Image3">>
+The fields were blackened. Ash clung to the earth like frost. Homes were torn open and charred, as if something had ripped straight through them.
+Blood stained the dirt. Smoke curled from what was left. Wind moved through empty doorways where lives had once been.
+
+Everyone was gone.
+
+The place that shaped you — your family, your rituals, your gods — had been wiped from the world without mercy or trace.
+
+And standing there, surrounded by smoke and silence, the only thing you could feel was the weight of being the one left behind.
+
+So you ran into the forest’s mouth, past every path you had ever known, until the trees closed behind you like a gate.
+
+<<fadeToImage "Image4">>
+With nothing left, you turned to the only thing that might still listen.
+In times of ruin, your people called to the spirits, performing rites of divination to seek guidance.
+
+So you returned to your people's sacred grove, a place as old as the trees that surround it. Hidden deep in the forest, it had been spared. 
+You knelt in the earth. With hurried hands, you gathered what you could — crushed leaves, damp soil, scraps of twine. 
+You shaped a crude bundle and lit the end.
+The smoke rose and quickly thickened. It curled and pulsed, gathering shape until a figure stood before you.
+
+<<fadeToImage "Image5">>
+It spoke:
+
+ANCESTRAL SPECTOR: Two paths lie ahead. One quiet. One red.
+
+ANCESTRAL SPECTOR: If peace you seek, then honor the dead — craft incense of comfrey, skullcap, valerian.  
+ANCESTRAL SPECTOR:A lost one’s token must burn in the flame, to call the spirits by their names.  
+ANCESTRAL SPECTOR:But know this: the rite must be cast within the circle where memory lasts.
+
+ANCESTRAL SPECTOR: And hear this well, O wanderer of ash — the forest has changed, its hunger is brash.  
+ANCESTRAL SPECTOR:Its roots are deep, its silence lies — and in its shade, the lost still rise.
+
+ANCESTRAL SPECTOR: They once had names, and faces known, but famine turned their hearts to stone.  
+ANCESTRAL SPECTOR:Twisted by hunger, they now obey — the forest’s will that none may sway.
+
+ANCESTRAL SPECTOR: Choose your battles. Keep yourself fed. Or the forest will feed on you instead.
+
+<<fadeToImage "Image4">> 
+The spirit faded. Its body of smoke dissolved into stillness.
+
+Reluctantly, you stepped into the forest. The path behind you closed.
+
+Even if there were a home left to return to, you would never find it again.
+
+<<jump QuickIntroEnd>>
+
+===
+
+title: QuickIntroEnd
+---
+
+<<stop>>
+
+===

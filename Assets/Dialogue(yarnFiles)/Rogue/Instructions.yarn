@@ -1,0 +1,59 @@
+﻿title: InstructionsStart
+---
+
+Do you want to view the instructions?
+
+-> Yes
+    <<jump InstructionsDetails>>
+-> No
+    Okay, stay sharp out there.
+    <<jump InstructionsEnd>>
+
+===
+
+title: InstructionsDetails
+---
+
+Movement & Interaction:
+Movement & Interaction:Use the WASD keys or the arrow keys to move.  
+Movement & Interaction:To talk to people or interact with objects, press E.
+
+Items & Crafting:
+Items & Crafting:You’ll find various items as you explore.  
+Items & Crafting: These can be used to craft tools, consumables, and key story items.  
+Items & Crafting: Crafting is done through the Crafting Menu, and shows a list of all possible recipes.  
+Items & Crafting:If you have the right ingredients, the recipe will be clickable — press it to craft.  
+Items & Crafting:The item will be added directly to your inventory.  
+Items & Crafting:If a recipe is greyed out, it means you’re missing materials.
+
+Menu & Inventory:
+Menu & Inventory: Press F to open the menu book.  
+Menu & Inventory:From there, you can access different pages by clicking the tabs.  
+Menu & Inventory:This includes your Inventory and Crafting menus.
+
+Combat:
+Combat:  Enemies roam the forest. When they get close, they will trigger turn-based combat.  
+Combat: During your turn, you can choose to:  
+Combat: Attack using standard strikes  
+Combat: Use special abilities (which consume magic or stamina)   
+Combat: Both enemies and the player have a chance to miss when attacking.
+Combat:Pay attention to the turn order and manage your resources carefully.
+
+Survival Stats:
+Survival Stats: You must also manage four key stats:  
+Survival Stats:Health – If this reaches zero, you die.  
+Survival Stats:MagicUsed for special combat abilities.  
+Survival Stats:Stamina – Also used for certain combat moves.  
+Survival Stats:Hunger – If this hits zero, you won’t die immediately, but your health will begin to decline until you eat.  
+Survival Stats:Keep yourself fed and be cautious — the forest is harsh, and unprepared travelers don’t last long.
+
+<<jump InstructionsEnd>>
+
+===
+
+title: InstructionsEnd
+---
+
+<<stop>>
+
+===

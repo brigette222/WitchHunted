@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 75a922b353864514a8e224d7ee18c2ba, type: 3}
+  m_Name: WendigoVisuals
+  m_EditorClassIdentifier: 
+  walkDown:
+  - {fileID: 2946420913958497228, guid: 16a1fa6eb03486c44a5fc0ad998b9711, type: 3}
+  - {fileID: 2973980195362238802, guid: a1127021509e7c0459ca135a0fa23880, type: 3}
+  walkUp:
+  - {fileID: 4535640952454775183, guid: 2b02dcd2be7b8234a866213874eeb012, type: 3}
+  - {fileID: 4795871681500856778, guid: 71868558e0c175e4a8cd6d5a8225ed9c, type: 3}
+  walkLeft:
+  - {fileID: 5838303722365860506, guid: dd8c665e876f5fc42ba0f5a48ed6636b, type: 3}
+  - {fileID: -4272726771758858731, guid: 42a60b46ccbc6d54a851ef7318786ce6, type: 3}
+  walkRight:
+  - {fileID: -4856180439023948902, guid: be0d9bd09e911e04a825f145ab71c42b, type: 3}
+  - {fileID: 4370403321089433563, guid: a56ba31e86903e348af615036ce31abf, type: 3}
+  idleDown:
+  - {fileID: 2946420913958497228, guid: 16a1fa6eb03486c44a5fc0ad998b9711, type: 3}
+  idleUp:
+  - {fileID: 4535640952454775183, guid: 2b02dcd2be7b8234a866213874eeb012, type: 3}
+  idleLeft:
+  - {fileID: 5838303722365860506, guid: dd8c665e876f5fc42ba0f5a48ed6636b, type: 3}
+  idleRight:
+  - {fileID: -280036903620395032, guid: 2cfe002fae2b4884ba3e620e029ca5b8, type: 3}
+  chaseDown:
+  - {fileID: 2946420913958497228, guid: 16a1fa6eb03486c44a5fc0ad998b9711, type: 3}
+  - {fileID: 2973980195362238802, guid: a1127021509e7c0459ca135a0fa23880, type: 3}
+  chaseUp:
+  - {fileID: 4535640952454775183, guid: 2b02dcd2be7b8234a866213874eeb012, type: 3}
+  - {fileID: 4795871681500856778, guid: 71868558e0c175e4a8cd6d5a8225ed9c, type: 3}
+  chaseLeft:
+  - {fileID: 5838303722365860506, guid: dd8c665e876f5fc42ba0f5a48ed6636b, type: 3}
+  - {fileID: -4272726771758858731, guid: 42a60b46ccbc6d54a851ef7318786ce6, type: 3}
+  chaseRight:
+  - {fileID: 4370403321089433563, guid: a56ba31e86903e348af615036ce31abf, type: 3}
+  - {fileID: -4856180439023948902, guid: be0d9bd09e911e04a825f145ab71c42b, type: 3}

@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/KissinFrogs/Scenes/KFTitle.unity
+    guid: aa18dd754a5739241beb14e0de2ef83c
+  - enabled: 1
+    path: Assets/KissinFrogs/Scenes/KFNewGameStart.unity
+    guid: 604a35f996ec6ff4fa5a35953906f1df
+  - enabled: 1
+    path: Assets/KissinFrogs/Scenes/KFLoadGameScene.unity
+    guid: 8c89f0234d4f4d746b75773b72c91aeb
+  - enabled: 1
+    path: Assets/Scenes/Storymode_p1/ImageCutscenes/MainMenu.unity
+    guid: 387118ff10399f04c93e43734e75f49b
+  - enabled: 1
+    path: Assets/Scenes/Storymode_p1/ImageCutscenes/Tut.unity
+    guid: 4976fd8b0a09df2428bac770b0c54e0e
+  - enabled: 1
+    path: Assets/Scenes/DeepForest/DeepForest.unity
+    guid: 37258de2c1755074cb385ce84601d83a
+  - enabled: 1
+    path: Assets/Scenes/Storymode_p1/ImageCutscenes/GameOver.unity
+    guid: 83114d3ff377aea43821c65e98bb4f8a
+  - enabled: 1
+    path: Assets/Scenes/Storymode_p1/ImageCutscenes/End1.unity
+    guid: dbe5a96245602dd499add5b1a269e6ea
+  - enabled: 1
+    path: Assets/Scenes/Storymode_p1/ImageCutscenes/Intro.unity
+    guid: 3a2635aa162f5214083aedc90e2653fb
+  - enabled: 1
+    path: Assets/Scenes/MoonVeil/ThaliaHome.unity
+    guid: c689a1d8215eeee49a6b26dab1b3fffb
+  - enabled: 1
+    path: Assets/Scenes/ForestHub.unity
+    guid: f22e4a11ba1158a48ad58ef332d4487b
+  - enabled: 1
+    path: Assets/Scenes/Storymode_p1/ImageCutscenes/PickFlower.unity
+    guid: 73c9f6423a33cff4ba21b45a99f59f8b
+  - enabled: 1
+    path: Assets/Scenes/Storymode_p1/Starter Foresg/StarterForest.unity
+    guid: bbf363a97c0146741a348fb3b96e696f
+  - enabled: 1
+    path: Assets/Scenes/Storymode_p1/Starter Foresg/SacredGrove02.unity
+    guid: 8a5d711ee4a75a44aa950aee2a5bf176
+  - enabled: 1
+    path: Assets/Scenes/Storymode_p1/Starter Foresg/SacredGrove01.unity
+    guid: 960d9511e913f8c4083dfda31ca8296e
+  - enabled: 1
+    path: Assets/Scenes/Storymode_p1/ImageCutscenes/Divination.unity
+    guid: d218cd31368521849b29f94be10b19b2
+  - enabled: 0
+    path: Assets/Scenes/Storymode_p1/DeepForest/Merchant1.unity
+    guid: 57bb7f2789c3e274db65ce77528876f7
+  - enabled: 1
+    path: Assets/Scenes/DeepForest/DeepForest 1.unity
+    guid: f131ef8d3ba33e3499b4f0258ecba5bd
+  - enabled: 1
+    path: Assets/Scenes/Storymode_p1/ImageCutscenes/Tut 1.unity
+    guid: d3a2798650aff184bbb83e6dd557ee96
+  m_configObjects:
+    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 252cd80fc26f89f4d9bb5561b540eed0, type: 2}
+  m_UseUCBPForAssetBundles: 0

@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8895300543784591820
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5403173174613931335}
+  - component: {fileID: 7815837335471796774}
+  m_Layer: 0
+  m_Name: CombatActionDatabase
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5403173174613931335
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8895300543784591820}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 491.31995, y: 207.76538, z: 0.99039364}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7815837335471796774
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8895300543784591820}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8672a4ffcacf4d4fb0a8ac75e0e185c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  itemActionPairs:
+  - item: {fileID: 11400000, guid: fd12714e1e77e094caaf94a728027339, type: 2}
+    combatAction: {fileID: 11400000, guid: 721863af0affcdc4c80587f841d4c2ee, type: 2}
+  - item: {fileID: 11400000, guid: 67d655a668ed3674cb237a568241fbe2, type: 2}
+    combatAction: {fileID: 11400000, guid: fc0d495db8385364ca5cd3f8934df6f5, type: 2}
+  - item: {fileID: 11400000, guid: 9f71b6fa6c0094143bc9d20ebd8c5e78, type: 2}
+    combatAction: {fileID: 11400000, guid: 4cf611ce65e655e4f81ecde8607d3a47, type: 2}
+  - item: {fileID: 11400000, guid: 5c24e1ca30ad8d542bd2590c0a94751d, type: 2}
+    combatAction: {fileID: 11400000, guid: 3476153cb0b3ebb4a9ea7b180f836616, type: 2}

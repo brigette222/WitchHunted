@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71eebe2d229982f4dadc5367515e0d1f, type: 3}
+  m_Name: Mystic Sludge
+  m_EditorClassIdentifier: 
+  id: MS
+  displayName: Mystic Sludge
+  description: A repulsive dark slime that sooths the mind when eaten. Boosts magical
+    ability.
+  type: 2
+  icon: {fileID: 5753300865369908668, guid: baaa378e44b3e154fb48e3350b3c78d0, type: 3}
+  dropPrefab: {fileID: 8785583996734866719, guid: 0d9e90297ee1bfb46861b46e3d69f3f4, type: 3}
+  canStack: 1
+  maxStackAmount: 99
+  consumables:
+  - type: 1
+    value: 100
+  equipPrefab: {fileID: 0}
+  combatAction: {fileID: 0}

@@ -1,0 +1,6 @@
+﻿title: Variables
+---
+declare $merchant_met = false
+declare $trade_item = ""
+declare $trade_payment = ""
+===

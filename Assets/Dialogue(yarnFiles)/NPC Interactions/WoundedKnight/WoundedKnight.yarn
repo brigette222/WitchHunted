@@ -1,0 +1,192 @@
+﻿title: WoundedStart
+---
+
+<<declare $has_salve = false>>
+<<declare $remove_healing_salve = false>>
+<<declare $take_head = false>>
+<<declare $knight_healed = false>>
+<<declare $knight_killed = false>>
+<<declare $knight_met = false>>
+
+<<if $knight_killed>>
+    <<jump Knight_Dead>>
+
+<<elseif $knight_healed>>
+    <<jump Knight_Healed>>
+
+<<elseif $knight_met>>
+    <<jump Knight_QuickIntro>>
+
+<<else>>
+    <<jump Knight_Initial>>
+<<endif>>
+
+===
+
+title: Knight_Initial
+---
+
+He’s collapsed near a wall, slumped over.  
+Armor rusted, dented, stained with dried blood. One arm is bent the wrong way.  
+His sword lies a few feet from his reach.  
+
+He looks up when you approach. His face is pale, eyes sunken.  
+
+
+KNIGHT:  Have you come to kill me?  
+KNIGHT: It won’t be much longer anyway.  
+KNIGHT: I’m wounded. Have mercy.
+
+His voice is dry. Not fearful — just tired.
+
+You freeze. The shape of his armor is foreign. Not one of your own. Not from the village.  
+One of them?
+
+You ask what happened. Who he is and what he’s done. He says nothing.  
+
+Is this one of the men who burned your home? Or just another lost soul in a forest that eats everything it touches?
+
+<<set $knight_met = true>>
+
+<<jump Knight_QuickIntro>>
+
+===
+
+title: Knight_QuickIntro
+---
+
+He’s breathing is shallow. He is still wounded and waiting.
+
+What do you do?
+
+-> “I’ll help him.”
+    <<jump Wounded_Heal>>
+-> “I’ll leave him.”
+    <<jump Wounded_Leave>>
+-> “I’ll kill him.”
+    <<jump Wounded_Kill>>
+
+===
+
+title: Wounded_Heal
+---
+
+<<if $has_salve>>
+<<jump Knight_Heal_Confirmed>>
+<<else>>
+<<jump Knight_Heal_Missing>>
+<<endif>>
+
+===
+
+title: Knight_Heal_Confirmed
+---
+
+You kneel beside the knight.  
+He doesn’t speak.  
+
+You mix a tincture from your herbs and press it to the wound.  
+He flinches, but stays still.
+
+You don’t know if he deserves it.  
+You do it anyway.
+
+<<set $remove_healing_salve = true>>
+<<set $knight_healed = true>>
+
+You used your last healing salve.
+
+<<jump Knight_Healed>>
+
+===
+
+title: Knight_Heal_Missing
+---
+
+You reach for your satchel...  
+But you have no salve left.
+
+You’ll need to craft one before you can help him.
+
+<<jump Knight_QuickIntro>>
+
+===
+
+title: Wounded_Leave
+---
+
+You say nothing.  
+
+The knight watches you as you turn away.  
+You don’t look back.
+
+If the forest wants him, it can have him.
+
+<<stop>>
+
+===
+
+title: Wounded_Kill
+---
+
+You pick up his sword.  
+It’s heavier than you thought.  
+
+The knight closes his eyes.  
+You don’t speak. You don’t hesitate.
+
+When it’s done, the forest is silent again.
+
+<<set $knight_killed = true>>
+
+-> Take his head
+    You steady your hands and do what must be done.  
+    It’s done quickly. The weight is heavier than expected.  
+
+    You retrieve the helmet from where it had fallen.  
+    Carefully, you place it back on the body — a gesture of mild guilt.
+
+    For a moment, it almost looks as if he’s still whole.  
+
+    <<set $take_head = true>>
+    <<stop>>
+-> Leave it
+    You step back from the body. No trophies.  
+    Just silence.  
+    <<set $take_head = false>>
+    <<stop>>
+
+===
+
+title: Knight_Dead
+---
+
+The knight’s body lies cold beneath the tree.  
+His sword remains where it fell.  
+You remember what you did and the silence after.
+
+There is nothing more for you here.
+
+<<stop>>
+
+===
+
+title: Knight_Healed
+---
+
+His breathing steadier now.  
+The bandage you left is still wrapped around his arm.
+
+KNIGHT: You could’ve let me die.  
+KNIGHT: …Thank you.
+
+He reaches into a pouch at his side, pulls out a small carved talisman.
+
+KNIGHT: I can't offer you much other than this. I found this while I was lost. It feels... important. I want you to have it.
+<<set $knight_reward = "Talisman">>
+
+You take the talisman.
+
+<<stop>>
+
+===

@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71eebe2d229982f4dadc5367515e0d1f, type: 3}
+  m_Name: Elaborate Dagger
+  m_EditorClassIdentifier: 
+  displayName: Gilded Dagger
+  description: An ornate weapon with gold-inlaid details, both elegant and deadly.
+  type: 1
+  icon: {fileID: 6305818012493361227, guid: 198e0f1a75e16e343b399550451a7db8, type: 3}
+  dropPrefab: {fileID: 4067368741785388606, guid: 4bdb3cc22c341624f930d965cceb9fba, type: 3}
+  canStack: 0
+  maxStackAmount: 0
+  consumables: []

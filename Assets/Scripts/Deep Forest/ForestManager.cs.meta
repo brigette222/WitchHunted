@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 472e42b316a00fd44b817dccbab2a340
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - randomItems: {fileID: 1356139957492114327, guid: d81db4e67a419fb42ae91ca8a3dd330a, type: 3}
+  - FloorPrefab: {fileID: 8488338761677079346, guid: 9f21d30ce3f58bd468b694fdc09f3498, type: 3}
+  - WallPrefab: {fileID: 4057920653821061219, guid: c7021c8dacb4477419664488035f8c3a, type: 3}
+  - tilePrefab: {fileID: 5435706946462560051, guid: 964c7d99a9d734441b75574eb3be8499, type: 3}
+  - ExitPrefab: {fileID: 6829512443002588497, guid: 738b827ec00eaef4f9ac7e8f57e7c260, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

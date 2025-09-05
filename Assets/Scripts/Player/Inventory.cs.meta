@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: 01f37701a5ff04142bd78e05d58f4ed5
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - inventoryWindow: {fileID: 4990442135214842004, guid: 35ef0d436b25fa0458958e4b00185c7e, type: 3}
+  - dropPosition: {fileID: 2216622944404789896, guid: 0d9e90297ee1bfb46861b46e3d69f3f4, type: 3}
+  - selectedItemName: {fileID: 4332727468123343340, guid: 13190517df336b04b9f469ba7be772ef, type: 3}
+  - selectedItemDescription: {fileID: 6592468389562991717, guid: b6890368055d887439f0e551ad85508a, type: 3}
+  - selectedItemStatNames: {fileID: 1295306482979712557, guid: 3b6877a29902a7148bfae95bb8abeb5b, type: 3}
+  - selectedItemStatValues: {fileID: 7939031630306925983, guid: abae39a109916f744bd64947009ef095, type: 3}
+  - useButton: {fileID: 65131203844413757, guid: 08f8dbb87200c8f478114a4af858ac61, type: 3}
+  - equipButton: {fileID: 4334250469981019033, guid: 9b88e978187990b4f8d60ff81656c03a, type: 3}
+  - unEquipButton: {fileID: 4842944915692736153, guid: d1d2a794b9f134b45868da51d379471d, type: 3}
+  - dropButton: {fileID: 4815484647522099915, guid: d53d42646198a30429606f889e3d8f3a, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

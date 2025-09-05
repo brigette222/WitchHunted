@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 425a78369bb29b04e9be0c1e62b92ed3, type: 3}
+  m_Name: Dried Berry Mix
+  m_EditorClassIdentifier: 
+  itemToCraft: {fileID: 11400000, guid: 56d927f693f78ce49a2fad81efd0d21b, type: 2}
+  cost:
+  - item: {fileID: 11400000, guid: 81d4612a034e9f84ebf907d9cff268e5, type: 2}
+    quantity: 1
+  - item: {fileID: 11400000, guid: c86972cd289cd7248a32cc134b45c8bd, type: 2}
+    quantity: 1
+  - item: {fileID: 11400000, guid: 5c24e1ca30ad8d542bd2590c0a94751d, type: 2}
+    quantity: 1

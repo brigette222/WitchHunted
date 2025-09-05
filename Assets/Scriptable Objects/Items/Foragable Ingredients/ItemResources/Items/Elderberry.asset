@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71eebe2d229982f4dadc5367515e0d1f, type: 3}
+  m_Name: Elderberry
+  m_EditorClassIdentifier: 
+  id: elderberry
+  displayName: Elderberry
+  description: "Elderberry \u2013 Dark purple berries with potent medicinal properties,
+    but toxic if eaten raw. (Must be prepared before use.)"
+  type: 0
+  icon: {fileID: 8598254438150139404, guid: f5a0c59ca47dd98418241c378e67c329, type: 3}
+  dropPrefab: {fileID: 7352287835530885135, guid: a45c470616760c94d930ef5cc5d3bf89, type: 3}
+  canStack: 1
+  maxStackAmount: 99
+  consumables:
+  - type: 2
+    value: 20
+  - type: 1
+    value: 6
+  equipPrefab: {fileID: 0}
+  combatAction: {fileID: 0}

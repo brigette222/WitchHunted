@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 3
+  tags:
+  - Undefined
+  - Wall
+  - Enemy
+  - DialogueTrigger
+  - Floor
+  - Foreground
+  - PauseUI
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - DialogueTrigger
+  - Water
+  - UI
+  - Enemy
+  - Player
+  - Resource
+  - Item
+  - Resource
+  - Equipable
+  - Ritual Item
+  - Interactable
+  - 
+  - Foreground
+  - 
+  - 
+  - Wall
+  - Floor
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Floor
+    uniqueID: 1252666599
+    locked: 0
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: Item
+    uniqueID: 2919827407
+    locked: 0
+  - name: Character
+    uniqueID: 967678251
+    locked: 0
+  - name: Wall
+    uniqueID: 1419668425
+    locked: 0
+  - name: Tree
+    uniqueID: 1572944275
+    locked: 0
+  m_RenderingLayers:
+  - Default

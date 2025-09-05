@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71eebe2d229982f4dadc5367515e0d1f, type: 3}
+  m_Name: Apple
+  m_EditorClassIdentifier: 
+  id: apple
+  displayName: Apple
+  description: A crisp fruit of knowledge, temptation, and hidden magic. (Restores
+    5 SP, 4 MP)
+  type: 2
+  icon: {fileID: 1325926076618749620, guid: e80f18fddd66cde49944a00b67398dae, type: 3}
+  dropPrefab: {fileID: 343674511507461002, guid: 3b4990f4ea6378940b14428ffb49640a, type: 3}
+  canStack: 1
+  maxStackAmount: 99
+  consumables:
+  - type: 0
+    value: 20
+  - type: 2
+    value: 5
+  equipPrefab: {fileID: 0}
+  combatAction: {fileID: 0}

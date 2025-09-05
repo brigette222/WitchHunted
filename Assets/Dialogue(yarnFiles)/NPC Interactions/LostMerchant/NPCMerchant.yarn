@@ -1,0 +1,95 @@
+﻿title: LostMerchantStart
+---
+<<if $merchant_met == false>>
+MERCHANT: No one comes this way unless they've lost something.
+MERCHANT: You don't have coin. I know that. No one does anymore.
+MERCHANT: But you've got blood. Magic, maybe. Something worth more than metal.
+MERCHANT: I trade in what still breathes. What still costs.
+<<set $merchant_met = true>>
+<<endif>>
+
+MERCHANT: So... what'll it be?
+
+-> Who are you
+    <<jump LostMerchantBackstory>>
+-> I want to trade
+    <<jump LostMerchantShop>>
+-> Forget it
+    MERCHANT: Then keep walking.
+    <<stop>>
+===
+title: LostMerchantBackstory
+---
+MERCHANT: I got lost a long time ago.
+MERCHANT: Long enough that I stopped looking for a way back.
+MERCHANT: The forest... it listens. If you let it. And sometimes, it answers.
+MERCHANT: I’ve learned how to live with what it gives me.
+MERCHANT: And with what others leave behind.
+MERCHANT: You’ve brought something too, haven’t you?
+MERCHANT: He smiles. It doesn’t reach his eyes.
+MERCHANT: Something cold settles behind your ribs.
+<<jump LostMerchantStart>>
+===
+title: LostMerchantShop
+---
+MERCHANT: Then let's not waste time. Here's what I can offer.
+
+-> A healing mixture
+    MERCHANT: For wounds you see, and the ones you don’t.
+    <<set $trade_item = "healing">>
+    <<jump TradePayment>>
+-> A strange bread-like loaf
+    MERCHANT: Unpleasant, but fills the belly.
+    <<set $trade_item = "bread">>
+    <<jump TradePayment>>
+-> A blend of smokable herbs
+    MERCHANT: Magic lingers in the lungs.
+    <<set $trade_item = "herbs">>
+    <<jump TradePayment>>
+-> Never mind
+    MERCHANT: Another day, then.
+    <<jump LostMerchantStart>>
+===
+title: TradePayment
+---
+MERCHANT: But nothing here is free. I accept only what's precious.
+
+MERCHANT: What do you offer in return?
+
+-> A chalice of blood
+    MERCHANT: Blood has power. Good choice.
+    <<set $trade_payment = "blood">>
+    <<jump CompleteTrade>>
+-> A year's worth of memories
+    MERCHANT: Memories feed the forest. They fetch a good price.
+    <<set $trade_payment = "memories">>
+    <<jump CompleteTrade>>
+-> Regurgitated rations
+    MERCHANT: I've survived on less. Fair trade.
+    <<set $trade_payment = "rations">>
+    <<jump CompleteTrade>>
+-> Vials of sweat
+    MERCHANT: Sweat tells a story. I'll take it.
+    <<set $trade_payment = "sweat">>
+    <<jump CompleteTrade>>
+-> Actually, never mind
+    MERCHANT: Changed your mind? Shame.
+    <<set $trade_item = "">>
+    <<set $trade_payment = "">>
+    <<jump LostMerchantStart>>
+===
+title: CompleteTrade
+---
+MERCHANT: A deal is made. May it serve you well.
+
+<<set $trade_complete = true>>
+
+<<stop>>
+===
+title: MerchantVariables
+---
+declare $merchant_met = false
+declare $trade_item = ""
+declare $trade_payment = ""
+declare $trade_complete = false
+===
