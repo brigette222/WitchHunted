@@ -21,7 +21,7 @@ EditorBuildSettings:
     path: Assets/Scenes/Storymode_p1/ImageCutscenes/Tut.unity
     guid: 4976fd8b0a09df2428bac770b0c54e0e
   - enabled: 1
-    path: Assets/Scenes/DeepForest/DeepForest.unity
+    path: Assets/Scenes/Storymode_p1/DeepForest.unity
     guid: 37258de2c1755074cb385ce84601d83a
   - enabled: 1
     path: Assets/Scenes/Storymode_p1/ImageCutscenes/GameOver.unity
