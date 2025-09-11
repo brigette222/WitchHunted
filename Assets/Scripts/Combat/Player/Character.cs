@@ -4,448 +4,302 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
-public class Character : MonoBehaviour
+public class Character : MonoBehaviour // Main class for characters (player or enemy)
 {
-    public int CurHp;
-    public int MaxHp;
-    private Image image; // Cached reference to this character's UI Image
-    private Color originalColor;
-    public bool IsPlayer;
-    private static Dictionary<Character, Color> originalColors = new Dictionary<Character, Color>();
-    public List<CombatAction> CombatActions = new List<CombatAction>();
+    public int CurHp; // Current health points
+    public int MaxHp; // Maximum health points
+    private Image image; // Cached reference to the UI image component (for flash effects)
+    private Color originalColor; // Store original color to restore after flash
+    public bool IsPlayer; // True if this character is the player
+    private static Dictionary<Character, Color> originalColors = new Dictionary<Character, Color>(); // Optionally track original colors for all characters
+    public List<CombatAction> CombatActions = new List<CombatAction>(); // List of actions this character can perform
 
-    [Range(0f, 1f)] public float EvasionRate = 0.1f;
-    [SerializeField] private float moveSpeed = 400f;
+    [Range(0f, 1f)] public float EvasionRate = 0.1f; // Chance to dodge an attack (between 0 and 1)
+    [SerializeField] private float moveSpeed = 400f; // Speed for attack movement
 
-    private Character opponent;
-    private Vector3 startPos;
-    public event UnityAction OnHealthChange;
-    public static event UnityAction<Character> OnDie;
+    private Character opponent; // Reference to the character being attacked
+    private Vector3 startPos; // Position to return to after attacking
+    public event UnityAction OnHealthChange; // Event: health changed
+    public static event UnityAction<Character> OnDie; // Event: this character died
 
-    [SerializeField] private AudioClip hurtSFX;
-    private AudioSource audioSource;
-    public AudioClip healSound; // Assign in Inspector
-    private bool actionInProgress = false;
+    [SerializeField] private AudioClip hurtSFX; // Sound to play when hurt
+    private AudioSource audioSource; // AudioSource component to play sounds
+    public AudioClip healSound; // Sound to play when healed
+    private bool actionInProgress = false; // Flag to prevent overlapping actions
 
-    // --- Opponent API (needed by CombatTrigger.cs) ---
-    public void SetOpponent(Character newOpponent)
+    public void SetOpponent(Character newOpponent) // Assign opponent reference
     {
-        opponent = newOpponent;
+        opponent = newOpponent; // Store new opponent
     }
 
-    public Character GetOpponent()
+    public Character GetOpponent() // Get opponent reference
     {
-        return opponent;
+        return opponent; // Return stored opponent
     }
 
-    public void ClearOpponent()
+    public void ClearOpponent() // Remove opponent reference
     {
-        opponent = null;
+        opponent = null; // Clear variable
     }
-    // --------------------------------------------------
 
-    void Start()
+    void Start() // Unity’s start method, runs once when this GameObject becomes active
     {
-        audioSource = GetComponent<AudioSource>();
-        image = GetComponent<Image>();
-        if (image != null)
+        audioSource = GetComponent<AudioSource>(); // Cache AudioSource component
+        image = GetComponent<Image>(); // Cache Image component if exists
+        if (image != null) // If there's an Image component
         {
-            originalColor = image.color;
-            Debug.Log($"[Character] Cached image color for {name}");
-        }
-        else
-        {
-            Debug.LogWarning($"[Character] No Image found on {name}!");
+            originalColor = image.color; // Save original color
         }
 
-        Debug.Log($"[Character] {name} (IsPlayer={IsPlayer}) spawned with {CurHp}/{MaxHp} HP.");
-
-        // IMPORTANT: Only actors that actually take turns should register.
-        // Player: yes. Main enemy (root) that has EnemyAI: yes. Limbs (no EnemyAI): no.
-        bool isTurnTaker = IsPlayer || (GetComponent<EnemyAI>() != null);
-        if (isTurnTaker && TurnManager.Instance != null)
+        bool isTurnTaker = IsPlayer || (GetComponent<EnemyAI>() != null); // Determine if this character should take turns: player or has EnemyAI
+        if (isTurnTaker && TurnManager.Instance != null) // If it should and there's a TurnManager
         {
-            TurnManager.Instance.RegisterCharacter(this);
-            Debug.Log($"[Character] {name} registered with TurnManager (isTurnTaker={isTurnTaker}).");
+            TurnManager.Instance.RegisterCharacter(this); // Register this character for turn order
         }
     }
 
-    public void FlashColor(Color flashColor)
+    public void FlashColor(Color flashColor) // Method to flash this character’s image (hurt visual)
     {
-        // Try conventional child names first
-        string targetName = IsPlayer ? "CombatCharacter" : "CombatEnemy";
+        string targetName = IsPlayer ? "CombatCharacter" : "CombatEnemy"; // Decide name of child object to use
+        Image img = null; // Local image variable
+
+        Transform child = transform.Find(targetName); // Try finding a child by name
+        if (child != null) img = child.GetComponent<Image>(); // If found, get its Image component
+        if (img == null) img = GetComponent<Image>(); // Fallback: Image on self
+        if (img == null) img = GetComponentInChildren<Image>(true); // Fallback: any child Image, active or not
+
+        if (img == null) return; // If still no image, do nothing
+
+        if (audioSource != null && hurtSFX != null) // If hurt sound can be played
+        {
+            audioSource.PlayOneShot(hurtSFX); // Play the hurt sound
+        }
+
+        StartCoroutine(FlashColorCoroutine(img, flashColor)); // Start the flashing coroutine
+    }
+
+    public IEnumerator FlashColorCoroutine(Color flashColor, float duration = 0.2f) // Coroutine to flash then reset color
+    {
+        string targetName = IsPlayer ? "CombatCharacter" : "CombatEnemy"; // Decide child name again
         Image img = null;
 
         Transform child = transform.Find(targetName);
         if (child != null) img = child.GetComponent<Image>();
-
-        // Fallback: Image on this object
-        if (img == null) img = GetComponent<Image>();
-
-        // Final fallback: any Image under this object (active or inactive)
-        if (img == null) img = GetComponentInChildren<Image>(true);
-
-        if (img == null)
-        {
-            Debug.LogWarning($"[FlashColor] No Image found on {name} (or child '{targetName}').");
-            return;
-        }
-
-        // Play hurt sound if available
-        if (audioSource != null && hurtSFX != null)
-        {
-            audioSource.PlayOneShot(hurtSFX);
-            Debug.Log($"[FlashColor] Playing hurt SFX on {name}");
-        }
-
-        Debug.Log($"[FlashColor] Flashing image on {name} — Color: {flashColor}");
-        StartCoroutine(FlashColorCoroutine(img, flashColor));
-    }
-
-    public IEnumerator FlashColorCoroutine(Color flashColor, float duration = 0.2f)
-    {
-        // Try conventional child names first
-        string targetName = IsPlayer ? "CombatCharacter" : "CombatEnemy";
-        Image img = null;
-
-        Transform child = transform.Find(targetName);
-        if (child != null) img = child.GetComponent<Image>();
-
-        // Fallbacks
         if (img == null) img = GetComponent<Image>();
         if (img == null) img = GetComponentInChildren<Image>(true);
 
-        if (img == null)
+        if (img == null) yield break; // Exit coroutine if no Image
+
+        Color original = img.color; // Store original color
+        img.color = flashColor; // Set to flash color
+        yield return new WaitForSeconds(duration); // Wait specified duration
+        img.color = original; // Reset back
+    }
+
+    private IEnumerator FlashColorCoroutine(Image img, Color flashColor) // Overloaded coroutine using direct image
+    {
+        Color originalColor = img.color; // Save color
+        img.color = flashColor; // Flash
+        yield return new WaitForSeconds(0.15f); // Short wait
+        img.color = originalColor; // Reset
+    }
+
+    public void ResetStartPos() // Method to set starting position for movement
+    {
+        var rt = GetComponent<RectTransform>(); // Check if UI element
+        if (rt != null) // If RectTransform exists
         {
-            Debug.LogWarning($"[FlashColor] No Image found for coroutine on {name}.");
-            yield break;
+            startPos = rt.anchoredPosition3D; // Use anchored position for UI
+        }
+        else // Otherwise
+        {
+            startPos = transform.position; // Use world position
+        }
+    }
+
+    public void TakeDamage(int damageToTake) // Handles incoming damage
+    {
+        if (CurHp <= 0) return; // Don't damage dead characters
+
+        float roll = Random.Range(0f, 1f); // Roll for evasion chance
+        if (roll < EvasionRate) return; // Dodged successfully
+
+        CurHp -= damageToTake; // Apply damage
+        FlashColor(Color.red); // Flash red to indicate hit
+        OnHealthChange?.Invoke(); // Notify listeners of health change
+        if (CurHp <= 0) Die(); // Handle death if HP drops to 0
+    }
+
+    void Die() // Handles death logic
+    {
+        OnDie?.Invoke(this); // Notify global listeners of death
+
+        if (IsPlayer) // If this is the player
+        {
+            gameObject.SetActive(false); // Deactivate player object
+            return;
         }
 
-        Color original = img.color;
-        img.color = flashColor;
-        yield return new WaitForSeconds(duration);
-        img.color = original;
-    }
-
-    private IEnumerator FlashColorCoroutine(Image img, Color flashColor)
-    {
-        Color originalColor = img.color;
-        img.color = flashColor;
-
-        yield return new WaitForSeconds(0.15f); // Quick flash time
-
-        img.color = originalColor;
-        Debug.Log("[FlashColor] Flash reset to original color.");
-    }
-
-    public void ResetStartPos()
-    {
-        // Cache UI position robustly for UI objects (RectTransform) or world objects
-        var rt = GetComponent<RectTransform>();
-        if (rt != null)
+        bool isMainEnemy = GetComponent<EnemyAI>() != null; // Determine if this is a main enemy
+        if (isMainEnemy) // If so
         {
-            // Use anchoredPosition for UI so we don't drift to screen corners
-            startPos = rt.anchoredPosition3D;
-            Debug.Log($"[Character] {name} startPos reset (UI) to {startPos}");
+            StartCoroutine(DelayedDeathAndCombatEnd()); // Delay before ending combat
         }
         else
         {
-            startPos = transform.position;
-            Debug.Log($"[Character] {name} startPos reset (world) to {startPos}");
+            gameObject.SetActive(false); // Just deactivate
         }
     }
 
-    public void TakeDamage(int damageToTake)
+    IEnumerator DelayedDeathAndCombatEnd() // Delayed combat end after enemy death
     {
-        if (CurHp <= 0)
-        {
-            Debug.LogWarning($"[Character] Tried to damage {name}, but they are already dead. Skipping.");
-            return;
-        }
-
-        float roll = Random.Range(0f, 1f);
-        Debug.Log($"[DEBUG] {name} Evasion Check: Roll = {roll}, EvasionRate = {EvasionRate}");
-
-        if (roll < EvasionRate)
-        {
-            Debug.Log($"[Character] {name} DODGED the attack! (Roll: {roll}, Evasion Rate: {EvasionRate})");
-            return;
-        }
-
-        CurHp -= damageToTake;
-        FlashColor(Color.red);
-        OnHealthChange?.Invoke();
-        Debug.Log($"[FlashColor] audioSource = {audioSource}, hurtSFX = {hurtSFX}");
-        Debug.Log($"[Character] {name} took {damageToTake} damage. Current HP: {CurHp}/{MaxHp}");
-
-        if (CurHp <= 0)
-        {
-            Die();
-        }
+        yield return new WaitForSeconds(2f); // Wait a bit for VFX/sound
+        gameObject.SetActive(false); // Disable the object
+        CombatManager.Instance.EndCombat(); // Notify CombatManager to end combat
     }
 
-    void Die()
+    public void Heal(int healAmount) // Handles healing
     {
-        Debug.Log($"[Character] {name} has died!");
-        OnDie?.Invoke(this);
+        CurHp += healAmount; // Add health
+        if (CurHp > MaxHp) CurHp = MaxHp; // Clamp to max HP
+        OnHealthChange?.Invoke(); // Notify listeners
+        StartCoroutine(FlashColorCoroutine(Color.green, 0.2f)); // Flash green to indicate heal
 
-        if (IsPlayer)
+        if (healSound != null && audioSource != null) // If audio is configured
         {
-            gameObject.SetActive(false);
-            return;
+            audioSource.PlayOneShot(healSound); // Play heal sound
         }
 
-        // Only the main enemy (root with EnemyAI) should end combat here.
-        // Limbs (no EnemyAI) just deactivate.
-        bool isMainEnemy = GetComponent<EnemyAI>() != null;
-        if (isMainEnemy)
-        {
-            StartCoroutine(DelayedDeathAndCombatEnd());
-        }
-        else
-        {
-            gameObject.SetActive(false);
-        }
-    }
-
-    IEnumerator DelayedDeathAndCombatEnd()
-    {
-        yield return new WaitForSeconds(2f);
-        gameObject.SetActive(false);
-        CombatManager.Instance.EndCombat();
-    }
-
-    public void Heal(int healAmount)
-    {
-        CurHp += healAmount;
-        Debug.Log($"[Character] {name} healed {healAmount} HP. Current HP: {CurHp}/{MaxHp}");
-
-        if (CurHp > MaxHp)
-            CurHp = MaxHp;
-
-        OnHealthChange?.Invoke();
-        StartCoroutine(FlashColorCoroutine(Color.green, 0.2f));
-
-        if (healSound != null && audioSource != null)
-        {
-            audioSource.PlayOneShot(healSound);
-            Debug.Log("[Character] Played healing sound.");
-        }
-
-        if (IsPlayer)
+        if (IsPlayer) // If player, sync with PlayerNeeds UI
         {
             PlayerNeeds needs = FindObjectOfType<PlayerNeeds>();
             if (needs != null)
             {
-                needs.health.curValue = CurHp;
-                needs.UpdateUI();
-                Debug.Log($"[Character] Synced PlayerNeeds after healing: {CurHp}");
-            }
-            else
-            {
-                Debug.LogWarning("[Character] Could not find PlayerNeeds after healing.");
+                needs.health.curValue = CurHp; // Update internal value
+                needs.UpdateUI(); // Refresh the UI
             }
         }
     }
 
-    public void CastCombatAction(CombatAction combatAction)
+    public void CastCombatAction(CombatAction combatAction) // Initiates a combat action
     {
-        if (actionInProgress)
-        {
-            Debug.LogWarning($"[Character] {name} tried to act, but action is already in progress!");
-            return;
-        }
+        if (actionInProgress) return; // Block overlapping actions
 
-        if (IsPlayer)
+        if (IsPlayer) // Resource checks for player
         {
             PlayerNeeds playerNeeds = FindObjectOfType<PlayerNeeds>();
+            if (playerNeeds == null) return;
 
-            if (playerNeeds == null)
-            {
-                Debug.LogError("[Character] PlayerNeeds script not found! Cannot check resources.");
-                return;
-            }
+            if (combatAction.MagicCost > 0 && playerNeeds.magik.curValue < combatAction.MagicCost) return;
+            if (combatAction.StaminaCost > 0 && playerNeeds.stamina.curValue < combatAction.StaminaCost) return;
 
-            if (combatAction.MagicCost > 0 && playerNeeds.magik.curValue < combatAction.MagicCost)
-            {
-                Debug.LogWarning($"[Character] Not enough Magik to use {combatAction.DisplayName}");
-                return;
-            }
-
-            if (combatAction.StaminaCost > 0 && playerNeeds.stamina.curValue < combatAction.StaminaCost)
-            {
-                Debug.LogWarning($"[Character] Not enough Stamina to use {combatAction.DisplayName}");
-                return;
-            }
-
-            playerNeeds.SpendMagik(combatAction.MagicCost);
-            playerNeeds.SpendStamina(combatAction.StaminaCost);
+            playerNeeds.SpendMagik(combatAction.MagicCost); // Spend magic
+            playerNeeds.SpendStamina(combatAction.StaminaCost); // Spend stamina
         }
 
-        Debug.Log($"[Character] {name} is casting {combatAction.DisplayName} — Damage: {combatAction.Damage}, Heal: {combatAction.HealAmount}");
-
-        actionInProgress = true;
-        StartCoroutine(PerformActionWithOptionalVFX(combatAction));
+        actionInProgress = true; // Flag that action is happening
+        StartCoroutine(PerformActionWithOptionalVFX(combatAction)); // Start performing action
     }
 
-    IEnumerator PerformActionWithOptionalVFX(CombatAction action)
+    IEnumerator PerformActionWithOptionalVFX(CombatAction action) // Executes the action and VFX
     {
-        yield return ExecuteCombatActionLogic(action);
+        yield return ExecuteCombatActionLogic(action); // Run main action logic
 
         string vfxName = action.VFXName;
-        if (!string.IsNullOrEmpty(vfxName))
+        if (!string.IsNullOrEmpty(vfxName)) // If there's a VFX to play
         {
-            VFXManager.Instance.PlayVFX(vfxName);
+            VFXManager.Instance.PlayVFX(vfxName); // Tell manager to spawn it
 
-            GameObject vfx = GameObject.Find(vfxName);
-            Animator animator = vfx?.GetComponent<Animator>();
+            GameObject vfx = GameObject.Find(vfxName); // Find the VFX object
+            Animator animator = vfx?.GetComponent<Animator>(); // Try to get animator
 
-            float waitTime = 1f;
+            float waitTime = 1f; // Default delay
             if (animator != null && animator.runtimeAnimatorController != null)
             {
-                waitTime = animator.GetCurrentAnimatorStateInfo(0).length;
+                waitTime = animator.GetCurrentAnimatorStateInfo(0).length; // Use animation length
             }
 
-            Debug.Log($"[Character] Waiting {waitTime}s for {vfxName} to finish...");
-            yield return new WaitForSeconds(waitTime);
+            yield return new WaitForSeconds(waitTime); // Wait for it to finish
         }
 
-        Debug.Log("[Character] Ending turn after VFX (or no VFX)");
-        SafeEndTurn();
+        SafeEndTurn(); // End this character's turn
     }
 
-    IEnumerator WaitForHealVFXThenContinue(string vfxName, CombatAction action)
+    IEnumerator ExecuteCombatActionLogic(CombatAction action) // Interprets combat action
     {
-        GameObject vfx = GameObject.Find(vfxName);
-
-        if (vfx == null)
+        if (action.Damage > 0) // If this is a damage action
         {
-            Debug.LogWarning("[Character] VFX GameObject not found: " + vfxName);
-            yield return ExecuteCombatActionLogic(action);
-            SafeEndTurn();
-            yield break;
+            yield return AttackOpponent(action); // Execute attack
         }
-
-        Animator animator = vfx.GetComponent<Animator>();
-        if (animator != null)
+        else if (action.ProjectilePrefab != null) // If it's a projectile attack
         {
-            float waitTime = animator.GetCurrentAnimatorStateInfo(0).length;
-            Debug.Log($"[Character] Waiting {waitTime}s for {vfxName} to finish...");
-            yield return new WaitForSeconds(waitTime);
+            GameObject proj = Instantiate(action.ProjectilePrefab, transform.position, Quaternion.identity); // Spawn it
+            proj.GetComponent<Projectile>().Initialize(opponent, SafeEndTurn); // Launch it toward opponent
         }
-        else
+        else if (action.HealAmount > 0) // If healing
         {
-            Debug.LogWarning("[Character] No Animator on " + vfxName + " — fallback to 1s delay");
-            yield return new WaitForSeconds(1f);
-        }
-
-        yield return ExecuteCombatActionLogic(action);
-        Debug.Log("[Character] Ending turn after VFX");
-        SafeEndTurn();
-    }
-
-    IEnumerator ExecuteCombatActionLogic(CombatAction action)
-    {
-        if (action.Damage > 0)
-        {
-            Debug.Log("[Character] Damage action triggered");
-            yield return AttackOpponent(action);
-        }
-        else if (action.ProjectilePrefab != null)
-        {
-            GameObject proj = Instantiate(action.ProjectilePrefab, transform.position, Quaternion.identity);
-            proj.GetComponent<Projectile>().Initialize(opponent, SafeEndTurn);
-        }
-        else if (action.HealAmount > 0)
-        {
-            Debug.Log("[Character] Healing action triggered");
-            Heal(action.HealAmount);
+            Heal(action.HealAmount); // Perform healing
         }
         yield return null;
     }
 
-    IEnumerator AttackOpponent(CombatAction combatAction)
+    IEnumerator AttackOpponent(CombatAction combatAction) // Handles attacking a target
     {
-        Character target = null;
+        Character target = null; // Initialize target reference
 
-        if (CombatManager.Instance != null && IsPlayer)
+        if (CombatManager.Instance != null && IsPlayer) // If player, use combat-selected target
             target = CombatManager.Instance.GetCurrentTarget();
 
-        if (target == null)
+        if (target == null) // Fallback: use assigned opponent
             target = opponent;
 
-        if (target == null)
+        if (target == null) // Final fallback: search scene for any valid target
         {
-            if (IsPlayer)
+            foreach (var c in FindObjectsOfType<Character>())
             {
-                foreach (var c in FindObjectsOfType<Character>())
+                bool isViableTarget = IsPlayer
+                    ? (!c.IsPlayer && c.GetComponent<EnemyAI>() != null && c.gameObject.activeInHierarchy) // Enemy for player
+                    : (c.IsPlayer && c.gameObject.activeInHierarchy); // Player for enemy
+
+                if (isViableTarget)
                 {
-                    if (!c.IsPlayer && c.GetComponent<EnemyAI>() != null && c.gameObject.activeInHierarchy)
-                    {
-                        target = c; break;
-                    }
-                }
-            }
-            else
-            {
-                foreach (var c in FindObjectsOfType<Character>())
-                {
-                    if (c.IsPlayer && c.gameObject.activeInHierarchy)
-                    {
-                        target = c; break;
-                    }
+                    target = c;
+                    break;
                 }
             }
         }
 
-        if (target == null)
+        if (target == null) // If still no target found, abort
         {
             Debug.LogError("[Character] AttackOpponent: target is NULL. Aborting.");
             SafeEndTurn();
             yield break;
         }
 
-        Debug.Log($"[Character] {name} is starting AttackOpponent against {target.name}");
+        RectTransform rectTransform = GetComponent<RectTransform>(); // Check if UI-based
+        if (startPos == default) // Cache original position if not set
+            startPos = rectTransform != null ? rectTransform.anchoredPosition3D : transform.position;
 
-        RectTransform rectTransform = GetComponent<RectTransform>();
-        if (rectTransform != null)
-        {
-            if (startPos == default) startPos = rectTransform.anchoredPosition3D;
-        }
-        else
-        {
-            if (startPos == default) startPos = transform.position;
-        }
+        Vector3 targetPos = rectTransform != null ? target.transform.localPosition : target.transform.position; // Get target pos
 
-        // Move forward
-        if (rectTransform != null)
+        // Move to target
+        while (Vector3.Distance(rectTransform != null ? rectTransform.anchoredPosition3D : transform.position, targetPos) > 0.1f)
         {
-            while (Vector3.Distance(rectTransform.anchoredPosition3D, target.transform.localPosition) > 0.1f)
+            if (rectTransform != null)
             {
-                rectTransform.anchoredPosition3D = Vector3.MoveTowards(
-                    rectTransform.anchoredPosition3D,
-                    target.transform.localPosition,
-                    moveSpeed * Time.deltaTime);
-                yield return null;
+                rectTransform.anchoredPosition3D = Vector3.MoveTowards(rectTransform.anchoredPosition3D, targetPos, moveSpeed * Time.deltaTime);
             }
-        }
-        else
-        {
-            while (Vector3.Distance(transform.position, target.transform.position) > 0.1f)
+            else
             {
-                transform.position = Vector3.MoveTowards(
-                    transform.position,
-                    target.transform.position,
-                    moveSpeed * Time.deltaTime);
-                yield return null;
+                transform.position = Vector3.MoveTowards(transform.position, targetPos, moveSpeed * Time.deltaTime);
             }
+            yield return null;
         }
 
-        // VFX: try AttackSlash1, then AttackSlash1VFX
+        // Play slash VFX if named "Attack"
         if (combatAction.DisplayName == "Attack")
         {
-            GameObject slashVFX = GameObject.Find("AttackSlash1");
-            if (slashVFX == null) slashVFX = GameObject.Find("AttackSlash1VFX");
+            GameObject slashVFX = GameObject.Find("AttackSlash1") ?? GameObject.Find("AttackSlash1VFX");
 
             if (slashVFX != null)
             {
@@ -453,12 +307,13 @@ public class Character : MonoBehaviour
                 var anim = slashVFX.GetComponent<Animator>();
                 if (anim != null)
                 {
-                    anim.Rebind(); anim.Play(0);
+                    anim.Rebind();
+                    anim.Play(0);
                     yield return new WaitForSeconds(anim.GetCurrentAnimatorStateInfo(0).length);
                 }
                 else
                 {
-                    yield return new WaitForSeconds(0.75f);
+                    yield return new WaitForSeconds(0.75f); // Fallback timing
                 }
                 slashVFX.SetActive(false);
             }
@@ -469,88 +324,67 @@ public class Character : MonoBehaviour
             }
         }
 
-        // Find an Image on the target for flash (works for limbs or root)
-        Image targetImg = null;
-        string childName = target.IsPlayer ? "CombatCharacter" : "CombatEnemy";
-        Transform imageTransform = target.transform.Find(childName);
-        if (imageTransform != null) targetImg = imageTransform.GetComponent<Image>();
-        if (targetImg == null) targetImg = target.GetComponent<Image>();
-        if (targetImg == null) targetImg = target.GetComponentInChildren<Image>(true);
+        // Visual feedback and damage
+        if (target.CurHp > 0)
+        {
+            Image targetImg = target.transform.Find(target.IsPlayer ? "CombatCharacter" : "CombatEnemy")?.GetComponent<Image>()
+                                ?? target.GetComponent<Image>()
+                                ?? target.GetComponentInChildren<Image>(true);
 
-        // Guard against attacking already-dead limb
-        if (target.CurHp <= 0)
+            Color original = targetImg ? targetImg.color : Color.white;
+            if (targetImg != null) targetImg.color = Color.red;
+
+            AudioSource audio = target.GetComponent<AudioSource>();
+            if (audio?.clip != null) audio.Play();
+
+            target.TakeDamage(combatAction.Damage); // Apply damage
+
+            yield return new WaitForSeconds(0.2f);
+            if (targetImg != null) targetImg.color = original;
+        }
+        else
         {
             Debug.LogWarning($"[Character] Target {target.name} already dead. Skipping damage.");
         }
-        else
+
+        yield return new WaitForSeconds(0.25f); // Small pause before return
+
+        // Move back to starting position
+        Vector3 returnPos = startPos;
+        while (Vector3.Distance(rectTransform != null ? rectTransform.anchoredPosition3D : transform.position, returnPos) > 0.1f)
         {
-            Color original = targetImg ? targetImg.color : Color.white;
-            if (targetImg) targetImg.color = Color.red;
-
-            AudioSource audio = target.GetComponent<AudioSource>();
-            if (audio != null && audio.clip != null) audio.Play();
-
-            target.TakeDamage(combatAction.Damage);
-
-            yield return new WaitForSeconds(0.2f);
-            if (targetImg) targetImg.color = original;
-        }
-
-        yield return new WaitForSeconds(0.25f);
-
-        // Move back to start
-        if (rectTransform != null)
-        {
-            while (Vector3.Distance(rectTransform.anchoredPosition3D, startPos) > 0.1f)
+            if (rectTransform != null)
             {
-                rectTransform.anchoredPosition3D = Vector3.MoveTowards(
-                    rectTransform.anchoredPosition3D,
-                    startPos,
-                    moveSpeed * Time.deltaTime);
-                yield return null;
+                rectTransform.anchoredPosition3D = Vector3.MoveTowards(rectTransform.anchoredPosition3D, returnPos, moveSpeed * Time.deltaTime);
             }
-        }
-        else
-        {
-            while (Vector3.Distance(transform.position, startPos) > 0.1f)
+            else
             {
-                transform.position = Vector3.MoveTowards(
-                    transform.position,
-                    startPos,
-                    moveSpeed * Time.deltaTime);
-                yield return null;
+                transform.position = Vector3.MoveTowards(transform.position, returnPos, moveSpeed * Time.deltaTime);
             }
+            yield return null;
         }
 
-        SafeEndTurn();
+        SafeEndTurn(); // Turn ends here
     }
 
-    private void SafeEndTurn()
+    private void SafeEndTurn() // Ends turn safely if still in progress
     {
-        if (!actionInProgress)
-        {
-            Debug.LogWarning($"[Character] {name} tried to EndTurn but action was already ended.");
-            return;
-        }
-
+        if (!actionInProgress) return;
         actionInProgress = false;
         TurnManager.Instance.EndTurn();
     }
 
-    public void NotifyHealthChanged()
-    {
-        OnHealthChange?.Invoke();
-    }
-    public void ApplyAggregateHealth(int aggregateCurHp, int aggregateMaxHp)
+    public void NotifyHealthChanged() => OnHealthChange?.Invoke(); // Trigger health update
+
+    public void ApplyAggregateHealth(int aggregateCurHp, int aggregateMaxHp) // External health sync
     {
         MaxHp = Mathf.Max(0, aggregateMaxHp);
         CurHp = Mathf.Clamp(aggregateCurHp, 0, MaxHp);
-        OnHealthChange?.Invoke(); // legal: invoked from inside Character
+        OnHealthChange?.Invoke();
     }
 
-    public void ForceDeath()
+    public void ForceDeath() // Forces this character to die
     {
-        // Avoid double death or killing disabled objects during transition
         if (!gameObject.activeInHierarchy) return;
         if (CurHp <= 0) return;
 
@@ -558,28 +392,25 @@ public class Character : MonoBehaviour
         Die();
     }
 
-
-    public void SyncWithPlayerNeeds(PlayerNeeds needs)
+    public void SyncWithPlayerNeeds(PlayerNeeds needs) // Pulls values from PlayerNeeds into this
     {
         this.CurHp = Mathf.RoundToInt(needs.health.curValue);
         this.MaxHp = Mathf.RoundToInt(needs.health.maxValue);
     }
 
-    public void SyncBackToPlayerNeeds(PlayerNeeds needs)
+    public void SyncBackToPlayerNeeds(PlayerNeeds needs) // Pushes values back into PlayerNeeds
     {
         needs.health.curValue = this.CurHp;
         needs.UpdateUI();
     }
 
-    public float GetHealthPercentage()
+    public float GetHealthPercentage() // Returns current health as a percentage
     {
         return (float)CurHp / MaxHp;
     }
 
-    public void ResetCharacter()
+    public void ResetCharacter() // Full character reset to initial state
     {
-        Debug.Log($"[Character] Resetting {name}...");
-
         CurHp = MaxHp;
         actionInProgress = false;
         opponent = null;
@@ -590,7 +421,5 @@ public class Character : MonoBehaviour
 
         if (!gameObject.activeSelf)
             gameObject.SetActive(true);
-
-        Debug.Log($"[Character] {name} reset with {CurHp}/{MaxHp} HP.");
     }
 }

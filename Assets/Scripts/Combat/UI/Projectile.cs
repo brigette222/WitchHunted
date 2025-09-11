@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 
+
+//not currenty used in this version of the game - may be implemented eventually
+
 public class Projectile : MonoBehaviour
 {
     [SerializeField] private int damage;

@@ -2,173 +2,107 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.SceneManagement; // <-- Make sure this is included
+using UnityEngine.SceneManagement;
+
+
+
+// Manages turn-based combat flow between registered characters.
+
+
 
 public class TurnManager : MonoBehaviour
 {
     [SerializeField] private float nextTurnDelay = 1.0f;
 
-    private List<Character> characters = new List<Character>();
-    private int curCharacterIndex = -1;
-    public Character CurrentCharacter;
+    private List<Character> characters = new List<Character>(); // Turn order list.
+    private int curCharacterIndex = -1; // Current index in turn list.
+    public Character CurrentCharacter; // Current character taking a turn.
 
     public event UnityAction<Character> OnBeginTurn;
     public event UnityAction<Character> OnEndTurn;
 
     public static TurnManager Instance;
 
-    private PlayerNeeds playerNeeds; // Reference to overworld player stats
+    private PlayerNeeds playerNeeds; // Reference to overworld player stats.
 
     void Awake()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(gameObject);
-        }
-        else
-        {
-            Instance = this;
-        }
+        if (Instance != null && Instance != this) Destroy(gameObject);
+        else Instance = this;
     }
 
-    void OnEnable()
-    {
-        Character.OnDie += OnCharacterDie;
-    }
-
-    void OnDisable()
-    {
-        Character.OnDie -= OnCharacterDie;
-    }
+    void OnEnable() => Character.OnDie += OnCharacterDie; // Listen for deaths.
+    void OnDisable() => Character.OnDie -= OnCharacterDie;
 
     public void StartCombat(Character player, Character enemy)
     {
-        Debug.Log($"[TurnManager] Starting combat between Player ({player.name}) and Enemy ({enemy.name})");
-
         characters.Clear();
         RegisterCharacter(player);
         RegisterCharacter(enemy);
-
         curCharacterIndex = -1;
 
-        //  Sync Player stats FROM PlayerNeeds ONLY ONCE
-        playerNeeds = FindObjectOfType<PlayerNeeds>();
+        playerNeeds = FindObjectOfType<PlayerNeeds>(); // Link to overworld health.
+
         if (playerNeeds != null)
         {
             player.CurHp = Mathf.RoundToInt(playerNeeds.health.curValue);
             player.MaxHp = Mathf.RoundToInt(playerNeeds.health.maxValue);
-
-            Debug.Log($"[TurnManager] Linked PlayerNeeds to combat: Player starts with {player.CurHp}/{player.MaxHp} HP");
-        }
-        else
-        {
-            Debug.LogError("[TurnManager] PlayerNeeds not found! Health won't sync.");
         }
 
-        //  Enemy HP full at start
-        enemy.CurHp = enemy.MaxHp;
-        Debug.Log($"[TurnManager] Enemy {enemy.name} HP reset to {enemy.CurHp}/{enemy.MaxHp}");
-
+        enemy.CurHp = enemy.MaxHp; // Reset enemy HP.
         BeginNextTurn();
     }
 
     public void RegisterCharacter(Character character)
     {
-        if (!characters.Contains(character))
-        {
-            characters.Add(character);
-            Debug.Log($"[TurnManager] Registered character: {character.name}");
-        }
+        if (!characters.Contains(character)) characters.Add(character); // Add to turn order.
     }
 
     public void BeginNextTurn()
     {
-        Debug.Log("[TurnManager] --------------------");
-        Debug.Log($"[TurnManager] BeginNextTurn() CALLED");
-
-        if (characters.Count == 0)
-        {
-            Debug.LogWarning("[TurnManager] No characters left to take a turn!");
-            return;
-        }
+        if (characters.Count == 0) return;
 
         curCharacterIndex++;
+        if (curCharacterIndex >= characters.Count) curCharacterIndex = 0; // Loop back.
 
-        if (curCharacterIndex >= characters.Count)
-        {
-            curCharacterIndex = 0;
-            Debug.Log("[TurnManager] Looping back to start of turn order.");
-        }
-
-        // ? Safety check in case index is still invalid
-        if (curCharacterIndex < 0 || curCharacterIndex >= characters.Count)
-        {
-            Debug.LogError($"[TurnManager] curCharacterIndex out of bounds: {curCharacterIndex}, list count: {characters.Count}");
-            return;
-        }
+        if (curCharacterIndex < 0 || curCharacterIndex >= characters.Count) return;
 
         CurrentCharacter = characters[curCharacterIndex];
+        if (CurrentCharacter == null) return;
 
-        if (CurrentCharacter == null)
-        {
-            Debug.LogError("[TurnManager] CurrentCharacter is NULL at turn start! Something is very wrong.");
-            return;
-        }
-
-        Debug.Log($"[TurnManager] It is now {CurrentCharacter.name}'s turn. IsPlayer = {CurrentCharacter.IsPlayer}");
-        Debug.Log($"[TurnManager] CurrentCharacter HP at start of turn: {CurrentCharacter.CurHp}/{CurrentCharacter.MaxHp}");
-
-        OnBeginTurn?.Invoke(CurrentCharacter);
+        OnBeginTurn?.Invoke(CurrentCharacter); // Fire turn start event.
     }
-
 
     public void EndTurn()
     {
-        if (CurrentCharacter == null || characters.Count <= 1)
-        {
-            Debug.LogWarning("[TurnManager] Skipping turn because combat is likely ending.");
-            return;
-        }
+        if (CurrentCharacter == null || characters.Count <= 1) return;
 
-        Debug.Log($"[TurnManager] {CurrentCharacter.name} ends turn. Calling BeginNextTurn after {nextTurnDelay} seconds.");
-
-        OnEndTurn?.Invoke(CurrentCharacter);
-        Invoke(nameof(BeginNextTurn), nextTurnDelay);
+        OnEndTurn?.Invoke(CurrentCharacter); // Fire turn end event.
+        Invoke(nameof(BeginNextTurn), nextTurnDelay); // Delay before next turn.
     }
 
     void OnCharacterDie(Character character)
     {
-        Debug.Log($"[TurnManager] {character.name} has died. Checking win/lose conditions.");
-
-        characters.Remove(character);
+        characters.Remove(character); // Remove dead character.
 
         if (character.IsPlayer)
         {
-            Debug.Log("[TurnManager] Player has died — you lose!");
-            StartCoroutine(GoToGameOverScreen());
+            StartCoroutine(GoToGameOverScreen()); // Loss condition.
         }
         else
         {
-            Debug.Log("[TurnManager] Enemy has died — you win!");
-
-            if (characters.Count == 1) // Only player remains
-            {
-                StartCoroutine(DelayedCombatEnd());
-            }
+            if (characters.Count == 1) StartCoroutine(DelayedCombatEnd()); // Win condition.
         }
     }
 
     IEnumerator DelayedCombatEnd()
     {
-        Debug.Log("[TurnManager] Combat will end in 2 seconds...");
         yield return new WaitForSeconds(2f);
 
-        // **Sync Combat Health Overworld Stats (ONLY if player is alive)
         if (playerNeeds != null && CurrentCharacter != null)
         {
             playerNeeds.health.curValue = CurrentCharacter.CurHp;
-            playerNeeds.UpdateUI();
-            Debug.Log($"[TurnManager] Combat ended. Player's health updated to {playerNeeds.health.curValue}");
+            playerNeeds.UpdateUI(); // Sync health to overworld.
         }
 
         CombatManager.Instance.EndCombat();
@@ -176,14 +110,12 @@ public class TurnManager : MonoBehaviour
 
     IEnumerator GoToGameOverScreen()
     {
-        Debug.Log("[TurnManager] Player is dead. Transitioning to Game Over screen in 2 seconds...");
         yield return new WaitForSeconds(2f);
-        SceneManager.LoadScene("GameOver"); //Make sure your Game Over scene is named correctly
+        SceneManager.LoadScene("GameOver"); // Load Game Over scene.
     }
 
     public void ClearCombatState()
     {
-        Debug.Log("[TurnManager] Clearing combat state...");
         characters.Clear();
         curCharacterIndex = -1;
         CurrentCharacter = null;

@@ -2,29 +2,29 @@ using UnityEngine;
 using static CombatAction;
 using System.Collections;
 
+
+
+// Script Manages turn-based combat, target selection, and UI bar setup.
+
+
+
+
 public class CombatManager : MonoBehaviour
 {
-    // === Targeting (for limb selection) ===
-    public Character CurrentTarget { get; private set; }
+    public Character CurrentTarget { get; private set; } // Currently selected target.
 
-    // === Singleton / refs ===
-    public static CombatManager Instance;
-    public GameObject combatUI;
+    public static CombatManager Instance; // Singleton.
+    public GameObject combatUI; // Root UI element for health bars.
 
-    // === UI Bars ===
-    private HealthBarUI playerHealthBar;
-    private HealthBarUI enemyHealthBar;
+    private HealthBarUI playerHealthBar; // Player's health bar UI.
+    private HealthBarUI enemyHealthBar;  // Enemy's health bar UI.
 
-    // === Action state ===
-    private CombatAction currentCombatAction;
+    private CombatAction currentCombatAction; // Active combat action.
 
-    // --------------------------------------
-    // Lifecycle
-    // --------------------------------------
     void Awake()
     {
         if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        else Destroy(gameObject); // Enforce singleton.
     }
 
     void OnEnable()
@@ -45,119 +45,56 @@ public class CombatManager : MonoBehaviour
         }
     }
 
-    // --------------------------------------
-    // Turn hooks (auto-clear selection)
-    // --------------------------------------
     void HandleBeginTurn(Character who)
     {
-        if (who != null && who.IsPlayer) ClearTarget();
+        if (who != null && who.IsPlayer) ClearTarget(); // Reset target at start of player turn.
     }
 
     void HandleEndTurn(Character who)
     {
-        if (who != null && who.IsPlayer) ClearTarget();
+        if (who != null && who.IsPlayer) ClearTarget(); // Reset target at end of player turn.
     }
 
-    // --------------------------------------
-    // Targeting API
-    // --------------------------------------
-    public void SetTarget(Character target)
-    {
-        CurrentTarget = target;
-        if (target != null)
-            Debug.Log($"[CombatManager] Selected target set to: {target.name}");
-        else
-            Debug.Log("[CombatManager] Selected target cleared (null).");
-    }
+    public void SetTarget(Character target) => CurrentTarget = target; // Assign target.
 
-    public Character GetCurrentTarget() => CurrentTarget;
+    public Character GetCurrentTarget() => CurrentTarget; // Get assigned target.
 
-    public void ClearTarget() => CurrentTarget = null;
+    public void ClearTarget() => CurrentTarget = null; // Clear target.
 
-    // --------------------------------------
-    // Health bars setup (robust + debug)
-    // --------------------------------------
     public void SetupHealthBars(Character player, Character enemy)
     {
-        Debug.Log("[CM] SetupHealthBars CALLED");
+        if (combatUI == null || player == null || enemy == null) return;
 
-        if (combatUI == null)
-        {
-            Debug.LogError("[CM] combatUI is NULL. Assign it on CombatManager.");
-            return;
-        }
+        var allBars = combatUI.GetComponentsInChildren<HealthBarUI>(true); // Collect all bars.
 
-        Debug.Log($"[CM] combatUI.activeSelf={combatUI.activeSelf}");
-        Debug.Log($"[CM] player={(player ? player.name : "NULL")}  enemy={(enemy ? enemy.name : "NULL")}");
-
-        if (player == null || enemy == null)
-        {
-            Debug.LogError("[CM] Player or Enemy is NULL — aborting bar setup.");
-            return;
-        }
-
-        // List every HealthBarUI under the combat UI for diagnostics
-        var allBars = combatUI.GetComponentsInChildren<HealthBarUI>(true);
-        Debug.Log($"[CM] Found {allBars.Length} HealthBarUI under combatUI:");
-        for (int i = 0; i < allBars.Length; i++)
-        {
-            var hb = allBars[i];
-            if (hb == null) continue;
-            Debug.Log($"[CM]  [{i}] {GetHierarchyPath(hb.transform)} (activeInHierarchy={hb.gameObject.activeInHierarchy})");
-        }
-
-        // Try to infer player & enemy bars
         var inferredPlayerBar = FindPlayerBarFromUI();
+        if (inferredPlayerBar == null && allBars.Length > 0) inferredPlayerBar = allBars[0]; // Fallback.
+
         var enemyBarUnderEnemy = enemy.GetComponentInChildren<HealthBarUI>(true);
-
-        if (inferredPlayerBar == null && allBars.Length > 0)
-        {
-            inferredPlayerBar = allBars[0];
-            Debug.Log("[CM] Player bar inference FAILED; falling back to first bar under combatUI.");
-        }
-
-        var inferredEnemyBar = enemyBarUnderEnemy != null
-            ? enemyBarUnderEnemy
-            : FindEnemyBarFromUIExcluding(inferredPlayerBar);
+        var inferredEnemyBar = enemyBarUnderEnemy != null ? enemyBarUnderEnemy : FindEnemyBarFromUIExcluding(inferredPlayerBar);
 
         if (inferredEnemyBar == null)
         {
-            Debug.LogWarning("[CM] Enemy bar inference FAILED; will try last-resort selection.");
-            // last resort: pick any bar that isn't the chosen player bar
             foreach (var hb in allBars)
             {
                 if (hb != null && hb != inferredPlayerBar)
                 {
-                    inferredEnemyBar = hb;
-                    Debug.Log($"[CM] Last-resort enemy bar = {GetHierarchyPath(hb.transform)}");
+                    inferredEnemyBar = hb; // Last-resort fallback.
                     break;
                 }
             }
         }
 
-        if (inferredPlayerBar == null || inferredEnemyBar == null)
-        {
-            Debug.LogError($"[CM] Could not assign health bars. playerBar={(inferredPlayerBar != null)} enemyBar={(inferredEnemyBar != null)}");
-            return;
-        }
+        if (inferredPlayerBar == null || inferredEnemyBar == null) return;
 
         playerHealthBar = inferredPlayerBar;
         enemyHealthBar = inferredEnemyBar;
-
-        Debug.Log($"[CM] Assigning PLAYER bar -> {GetHierarchyPath(playerHealthBar.transform)}  to {player.name}");
-        Debug.Log($"[CM] Assigning ENEMY  bar -> {GetHierarchyPath(enemyHealthBar.transform)}  to {enemy.name}");
 
         playerHealthBar.Setup(player);
         enemyHealthBar.Setup(enemy);
     }
 
-    // --------------------------------------
-    // End combat flow
-    // --------------------------------------
-    public void EndCombat()
-    {
-        StartCoroutine(DelayedCombatEnd());
-    }
+    public void EndCombat() => StartCoroutine(DelayedCombatEnd()); // Kick off end transition.
 
     IEnumerator DelayedCombatEnd()
     {
@@ -172,27 +109,16 @@ public class CombatManager : MonoBehaviour
             if (TurnManager.Instance != null) TurnManager.Instance.ClearCombatState();
         });
 
-        yield return null; // transition handles timing
+        yield return null; // Let transition handle delay.
     }
 
-    // --------------------------------------
-    // Action bookkeeping
-    // --------------------------------------
-    public void SetCurrentCombatAction(CombatAction action)
-    {
-        currentCombatAction = action;
-        Debug.Log($"[CombatManager] Current combat action set to: {action.DisplayName}");
-    }
+    public void SetCurrentCombatAction(CombatAction action) => currentCombatAction = action; // Assign action.
 
-    public CombatAction GetCurrentCombatAction() => currentCombatAction;
+    public CombatAction GetCurrentCombatAction() => currentCombatAction; // Retrieve action.
 
     public void ExecuteAction(Character caster, Character target, CombatAction action)
     {
-        if (action == null)
-        {
-            Debug.LogError("[CombatManager] No combat action provided!");
-            return;
-        }
+        if (action == null) return;
 
         SetCurrentCombatAction(action);
         bool isHealing = action.ActionType == CombatAction.Type.Heal;
@@ -203,18 +129,11 @@ public class CombatManager : MonoBehaviour
         }
         else
         {
-            if (target == null)
-            {
-                Debug.LogWarning("[CombatManager] ExecuteAction: target was NULL; action ignored.");
-                return;
-            }
+            if (target == null) return;
             target.TakeDamage(action.Damage);
         }
     }
 
-    // --------------------------------------
-    // Helpers (private)
-    // --------------------------------------
     private string GetHierarchyPath(Transform t)
     {
         if (t == null) return "(null)";
@@ -235,19 +154,10 @@ public class CombatManager : MonoBehaviour
         {
             if (hb == null) continue;
             string path = GetHierarchyPath(hb.transform).ToLowerInvariant();
-            if (path.Contains("player"))
-            {
-                Debug.Log($"[CM] Inferred PLAYER bar by name: {path}");
-                return hb;
-            }
+            if (path.Contains("player")) return hb;
         }
 
-        if (all.Length == 2)
-        {
-            Debug.Log("[CM] Assuming first bar is PLAYER (2 bars found, no name hint).");
-            return all[0];
-        }
-
+        if (all.Length == 2) return all[0]; // Default to first.
         return null;
     }
 
@@ -259,20 +169,14 @@ public class CombatManager : MonoBehaviour
         {
             if (hb == null || hb == exclude) continue;
             string path = GetHierarchyPath(hb.transform).ToLowerInvariant();
-            if (path.Contains("enemy") || path.Contains("boss"))
-            {
-                Debug.Log($"[CM] Inferred ENEMY bar by name: {path}");
-                return hb;
-            }
+            if (path.Contains("enemy") || path.Contains("boss")) return hb;
         }
 
         foreach (var hb in all)
         {
-            if (hb != null && hb != exclude)
-                return hb;
+            if (hb != null && hb != exclude) return hb;
         }
 
         return null;
     }
 }
-

@@ -1,164 +1,134 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
+using System.Collections;  
 
-public class CombatActionUI : MonoBehaviour
+using UnityEngine; 
+using UnityEngine.UI;   
+using TMPro;   
+
+public class CombatActionUI : MonoBehaviour // UI controller for combat actions  
 {
-    [SerializeField] private GameObject visualContainer;
-    [SerializeField] private Button[] combatActionButtons;
+    [SerializeField] private GameObject visualContainer; // Container for action buttons UI  
+    [SerializeField] private Button[] combatActionButtons; // Buttons for each combat action  
 
-    public static CombatActionUI Instance { get; private set; }
+    public static CombatActionUI Instance { get; private set; } // Singleton reference  
 
-    //VFX
+    // VFX game objects  
     [SerializeField] private GameObject Heal1VFX;
     [SerializeField] private GameObject AttackSlash1VFX;
 
-    [SerializeField] private GameObject CombatMagikList;
-    [SerializeField] private GameObject CombatSkillList;
-    [SerializeField] private GameObject CombatItemList;
-    [SerializeField] private Button MagikButton;
-    [SerializeField] private Button SkillsButton;
-    [SerializeField] private Button ItemButton;
+    [SerializeField] private GameObject CombatMagikList; // UI list for magic actions  
+    [SerializeField] private GameObject CombatSkillList; // UI list for skill actions  
+    [SerializeField] private GameObject CombatItemList; // UI list for items  
+    [SerializeField] private Button MagikButton; // Button to toggle magic list  
+    [SerializeField] private Button SkillsButton; // Button to toggle skills list  
+    [SerializeField] private Button ItemButton; // Button to toggle items list  
 
+    private bool isTogglingMagic = false; // Flag to prevent rapid toggle spam for magic  
+    private bool isTogglingSkills = false; // Same for skills  
+    private bool isTogglingItems = false; // Same for items  
 
-    private bool isTogglingMagic = false;
-    private bool isTogglingSkills = false;
-    private bool isTogglingItems = false;
-
-    void Awake()
+    void Awake() // Unity lifecycle: before Start  
     {
-        Instance = this;
+        Instance = this; // Set singleton instance  
     }
 
-    void Start()
+    void Start() // Unity lifecycle: after Awake, before first frame  
     {
-        Debug.Log("[CombatActionUI] Start() has been called.");
+        // No logs: initialization only  
     }
 
-    void OnEnable()
+    void OnEnable() // Called when this object becomes enabled/active  
     {
-        Debug.Log("[CombatActionUI] OnEnable fired — Subscribing to TurnManager events.");
-
-        TurnManager.Instance.OnBeginTurn += OnBeginTurn;
-        TurnManager.Instance.OnEndTurn += OnEndTurn;
+        TurnManager.Instance.OnBeginTurn += OnBeginTurn; // Subscribe to turn start  
+        TurnManager.Instance.OnEndTurn += OnEndTurn; // Subscribe to turn end  
 
         if (MagikButton.onClick.GetPersistentEventCount() == 0)
-            MagikButton.onClick.AddListener(ToggleMagicUI);
+            MagikButton.onClick.AddListener(ToggleMagicUI); // Ensure toggle listener is set  
 
         if (SkillsButton.onClick.GetPersistentEventCount() == 0)
-            SkillsButton.onClick.AddListener(ToggleSkillsUI);
+            SkillsButton.onClick.AddListener(ToggleSkillsUI); // Same for skills  
 
         if (ItemButton.onClick.GetPersistentEventCount() == 0)
-            ItemButton.onClick.AddListener(ToggleItemUI);
+            ItemButton.onClick.AddListener(ToggleItemUI); // Same for items  
     }
 
-    void OnDisable()
+    void OnDisable() // Called when object is disabled/inactive  
     {
-        Debug.Log("[CombatActionUI] OnDisable fired — Unsubscribing from TurnManager events.");
-
         if (TurnManager.Instance != null)
         {
-            TurnManager.Instance.OnBeginTurn -= OnBeginTurn;
+            TurnManager.Instance.OnBeginTurn -= OnBeginTurn; // Unsubscribe from events  
             TurnManager.Instance.OnEndTurn -= OnEndTurn;
         }
-        else
-        {
-            Debug.LogWarning("[CombatActionUI] TurnManager instance is NULL during OnDisable. Skipping event unsubscription.");
-        }
 
-        MagikButton.onClick.RemoveListener(ToggleMagicUI);
+        MagikButton.onClick.RemoveListener(ToggleMagicUI); // Remove toggle listeners  
         SkillsButton.onClick.RemoveListener(ToggleSkillsUI);
         ItemButton.onClick.RemoveListener(ToggleItemUI);
     }
 
-    void OnBeginTurn(Character character)
+    void OnBeginTurn(Character character) // Called when a character’s turn begins  
     {
-        Debug.Log($"[CombatActionUI] OnBeginTurn fired — Character: {character.name}, IsPlayer: {character.IsPlayer}");
-
-        if (!character.IsPlayer)
+        if (!character.IsPlayer) // If it’s an enemy’s turn  
         {
-            Debug.Log("[CombatActionUI] Enemy's turn — Hiding all lists.");
-            CombatMagikList.SetActive(false);
-            CombatSkillList.SetActive(false);
-            CombatItemList.SetActive(false);
-            return;
+            CombatMagikList.SetActive(false); // Hide magic list  
+            CombatSkillList.SetActive(false); // Hide skills list  
+            CombatItemList.SetActive(false); // Hide items list  
+            return; // Exit, do not show UI  
         }
 
-        visualContainer.SetActive(true);
-        Debug.Log("[CombatActionUI] Player's turn — Showing action buttons.");
+        visualContainer.SetActive(true); // Show action buttons UI  
 
         for (int i = 0; i < combatActionButtons.Length; i++)
         {
-            if (i < character.CombatActions.Count)
+            if (i < character.CombatActions.Count) // If this button maps to a real action  
             {
-                CombatAction ca = character.CombatActions[i];
+                CombatAction ca = character.CombatActions[i]; // Get the action  
 
-                combatActionButtons[i].gameObject.SetActive(true);
-                combatActionButtons[i].GetComponentInChildren<TextMeshProUGUI>().text = ca.DisplayName;
+                combatActionButtons[i].gameObject.SetActive(true); // Make button visible  
+                combatActionButtons[i].GetComponentInChildren<TextMeshProUGUI>().text = ca.DisplayName; // Set its label  
 
-                combatActionButtons[i].onClick.RemoveAllListeners();
-                combatActionButtons[i].onClick.AddListener(() => OnClickCombatAction(ca));
+                combatActionButtons[i].onClick.RemoveAllListeners(); // Clear old listeners  
+                combatActionButtons[i].onClick.AddListener(() => OnClickCombatAction(ca)); // Add listener to trigger this action  
 
-                Debug.Log($"[CombatActionUI] Button {i} set to action: {ca.DisplayName}");
             }
             else
             {
-                combatActionButtons[i].gameObject.SetActive(false);
+                combatActionButtons[i].gameObject.SetActive(false); // Hide unused buttons  
             }
         }
     }
 
-    void OnEndTurn(Character character)
+    void OnEndTurn(Character character) // Called when a character’s turn ends  
     {
-        Debug.Log($"[CombatActionUI] OnEndTurn fired — Character: {character.name}");
-
-        if (character.IsPlayer)
+        if (character.IsPlayer) // If it was the player  
         {
-            Debug.Log("[CombatActionUI] Player ended turn. Hiding action buttons.");
-            visualContainer.SetActive(false);
+            visualContainer.SetActive(false); // Hide action buttons UI  
         }
     }
 
-
-    public void OnClickCombatAction(CombatAction combatAction)
+    public void OnClickCombatAction(CombatAction combatAction) // Called when player clicks an action button  
     {
-        Debug.Log($"[CombatActionUI] Player clicked action: {combatAction.DisplayName}");
-
-        // VFX (existing behavior)
+        // VFX for specific action names  
         if (combatAction.DisplayName == "Zyciokrag" && Heal1VFX != null)
         {
-            Debug.Log("[VFX] Enabling Heal1VFX");
-            Heal1VFX.SetActive(true);
+            Heal1VFX.SetActive(true); // Show healing VFX  
 
-            Animator animator = Heal1VFX.GetComponent<Animator>();
+            Animator animator = Heal1VFX.GetComponent<Animator>(); // Get animator for VFX  
             if (animator != null)
             {
                 animator.Rebind();
                 animator.Play(0);
-                Debug.Log("[VFX] Playing Heal1VFX animation");
-                StartCoroutine(DisableVFXAfterAnimation(Heal1VFX));
-            }
-            else
-            {
-                Debug.LogWarning("[VFX] Animator missing on Heal1VFX.");
+                StartCoroutine(DisableVFXAfterAnimation(Heal1VFX)); // Turn off after animation  
             }
         }
 
-        // Optional delayed slash VFX for basic Attack
         if (combatAction.DisplayName == "Attack" && AttackSlash1VFX != null)
         {
-            Debug.Log("[Character] Delayed trigger of AttackSlash1 VFX from Character.cs");
-            StartCoroutine(PlayAttackSlashVFXDelayed(1f));
+            StartCoroutine(PlayAttackSlashVFXDelayed(1f)); // Delay slash VFX  
         }
 
-        // === Resolve the target (selected limb if any) ===
-        Character caster = TurnManager.Instance.CurrentCharacter;
-        Character selected = CombatManager.Instance != null ? CombatManager.Instance.GetCurrentTarget() : null;
+        Character caster = TurnManager.Instance.CurrentCharacter; // Who is using the action  
+        Character selected = CombatManager.Instance != null ? CombatManager.Instance.GetCurrentTarget() : null; // Chosen target  
 
-        // If no limb was selected, default to enemy root that is active (has EnemyAI)
-        if (selected == null)
+        if (selected == null) // If no target selected  
         {
             Character fallbackEnemy = null;
             foreach (var c in FindObjectsOfType<Character>())
@@ -169,120 +139,84 @@ public class CombatActionUI : MonoBehaviour
                 }
             }
             selected = fallbackEnemy;
-            Debug.Log(selected != null
-                ? $"[CombatActionUI] No limb selected — defaulting to enemy root '{selected.name}'."
-                : "[CombatActionUI] No limb selected and no enemy root found!");
-        }
-        else
-        {
-            Debug.Log($"[CombatActionUI] Targeting limb '{selected.name}'.");
         }
 
-        // Heals target self; no need to set a target
-        if (combatAction.ActionType == CombatAction.Type.Heal)
+        if (combatAction.ActionType == CombatAction.Type.Heal) // If action is a heal, don’t select target  
         {
             caster.CastCombatAction(combatAction);
             return;
         }
 
-        // For player attacks, store chosen target so Character uses it (no SetOpponent needed)
-        if (selected != null && CombatManager.Instance != null)
+        if (selected != null && CombatManager.Instance != null) // If valid target exists  
         {
-            CombatManager.Instance.SetTarget(selected);
+            CombatManager.Instance.SetTarget(selected); // Set it  
         }
 
-        caster.CastCombatAction(combatAction);
+        caster.CastCombatAction(combatAction); // Execute action  
     }
 
 
 
-    // **Coroutine to Disable VFX After Animation**
-    IEnumerator DisableVFXAfterAnimation(GameObject vfxObject)
+    IEnumerator DisableVFXAfterAnimation(GameObject vfxObject) // Turns off VFX after its animation finishes  
     {
-        if (vfxObject == null)
-        {
-            Debug.LogError("[VFX] VFX object is NULL! Make sure it's assigned.");
+        if (vfxObject == null) // Safety check  
             yield break;
-        }
 
-        Animator animator = vfxObject.GetComponent<Animator>();
+        Animator animator = vfxObject.GetComponent<Animator>(); // Get animator  
 
-        if (animator != null)
+        if (animator != null) // If animator exists  
         {
-            Debug.Log($"[VFX] Playing animation on {vfxObject.name}");
             animator.Rebind();
             animator.Play(0);
-
-            yield return new WaitForSeconds(animator.GetCurrentAnimatorStateInfo(0).length);
+            yield return new WaitForSeconds(animator.GetCurrentAnimatorStateInfo(0).length); // Wait animation length  
         }
         else
         {
-            Debug.LogWarning("[VFX] No Animator found on VFX. Disabling after 0.5s fallback.");
-            yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSeconds(0.5f); // Fallback wait  
         }
 
-        vfxObject.SetActive(false);
-        Debug.Log($"[VFX] Disabled {vfxObject.name} after animation.");
+        vfxObject.SetActive(false); // Disable VFX object  
     }
 
-
-
-    // **Toggles Magic UI Panel**
-    public void ToggleMagicUI()
+    public void ToggleMagicUI() // Toggles the magic actions panel  
     {
-        if (CombatMagikList == null || isTogglingMagic) return;
-
+        if (CombatMagikList == null || isTogglingMagic) return; // Block if null or already toggling  
         isTogglingMagic = true;
-        Debug.Log("[CombatActionUI] ToggleMagicUI() called.");
 
-        bool isNowActive = !CombatMagikList.activeSelf;
+        bool isNowActive = !CombatMagikList.activeSelf; // Determine new state  
         CombatMagikList.SetActive(isNowActive);
         CombatSkillList.SetActive(false);
         CombatItemList.SetActive(false);
 
-        Debug.Log($"[CombatActionUI] Magic List Active? {CombatMagikList.activeSelf}");
-
-        StartCoroutine(ResetToggleFlag(() => isTogglingMagic = false));
+        StartCoroutine(ResetToggleFlag(() => isTogglingMagic = false)); // Reset toggle blocker  
     }
 
-    // **Toggles Skills UI Panel**
-    public void ToggleSkillsUI()
+    public void ToggleSkillsUI() // Toggles the skill actions panel  
     {
         if (CombatSkillList == null || isTogglingSkills) return;
-
         isTogglingSkills = true;
-        Debug.Log("[CombatActionUI] ToggleSkillsUI() called.");
 
         bool isNowActive = !CombatSkillList.activeSelf;
         CombatSkillList.SetActive(isNowActive);
         CombatMagikList.SetActive(false);
         CombatItemList.SetActive(false);
 
-        Debug.Log($"[CombatActionUI] Skills List Active? {CombatSkillList.activeSelf}");
-
         StartCoroutine(ResetToggleFlag(() => isTogglingSkills = false));
     }
 
-    public void ToggleItemUI()
+    public void ToggleItemUI() // Toggles the item actions panel  
     {
         if (CombatItemList == null || isTogglingItems) return;
-
         isTogglingItems = true;
-        Debug.Log("[CombatActionUI] ToggleItemUI() called.");
 
         bool isNowActive = !CombatItemList.activeSelf;
 
-        if (isNowActive)
+        if (isNowActive) // If enabling items panel  
         {
             CombatInventoryUI inventoryUI = FindObjectOfType<CombatInventoryUI>();
             if (inventoryUI != null)
             {
-                inventoryUI.PopulateItemList();
-                Debug.Log("[CombatActionUI] Called PopulateItemList() from CombatInventoryUI.");
-            }
-            else
-            {
-                Debug.LogError("[CombatActionUI] ERROR: CombatInventoryUI not found!");
+                inventoryUI.PopulateItemList(); // Fill item list UI  
             }
         }
 
@@ -290,28 +224,21 @@ public class CombatActionUI : MonoBehaviour
         CombatMagikList.SetActive(false);
         CombatSkillList.SetActive(false);
 
-        Debug.Log($"[CombatActionUI] Item List Active? {CombatItemList.activeSelf}");
-
         StartCoroutine(ResetToggleFlag(() => isTogglingItems = false));
     }
 
-    private IEnumerator ResetToggleFlag(System.Action resetAction)
+    private IEnumerator ResetToggleFlag(System.Action resetAction) // Short coroutine to reset toggle flags  
     {
         yield return new WaitForSeconds(0.1f);
         resetAction();
     }
 
-    public IEnumerator PlayAttackSlashVFXDelayed(float delay)
+    public IEnumerator PlayAttackSlashVFXDelayed(float delay) // Plays the attack slash VFX after a delay  
     {
         yield return new WaitForSeconds(delay);
 
-        if (AttackSlash1VFX == null)
-        {
-            Debug.LogError("[VFX] AttackSlash1VFX is NULL! Make sure it's assigned.");
-            yield break;
-        }
+        if (AttackSlash1VFX == null) yield break; // Safety null check  
 
-        Debug.Log("[VFX] Delayed enabling of AttackSlash1VFX.");
         AttackSlash1VFX.SetActive(true);
 
         Animator animator = AttackSlash1VFX.GetComponent<Animator>();
@@ -319,21 +246,16 @@ public class CombatActionUI : MonoBehaviour
         {
             animator.Rebind();
             animator.Play(0);
-            Debug.Log("[VFX] Playing AttackSlash1VFX animation");
-
             yield return new WaitForSeconds(animator.GetCurrentAnimatorStateInfo(0).length);
         }
         else
         {
-            Debug.LogWarning("[VFX] No Animator on AttackSlash1VFX. Using fallback.");
-            yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSeconds(0.5f); // Fallback delay  
         }
 
         AttackSlash1VFX.SetActive(false);
-        Debug.Log("[VFX] Disabled AttackSlash1VFX after animation.");
     }
-
-}
+}  
 
 
 

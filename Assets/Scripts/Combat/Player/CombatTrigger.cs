@@ -1,109 +1,82 @@
-using UnityEngine;
-using System.Collections;
+using UnityEngine; // Unity engine core features
 
-public class CombatTrigger2D : MonoBehaviour
+public class CombatTrigger2D : MonoBehaviour // Detects enemies and initiates combat
 {
-    public GameObject combatUI;
-    public float detectionRadius = 1.5f;
-    public LayerMask enemyLayer;
+    public GameObject combatUI; // UI container for combat
+    public float detectionRadius = 1.5f; // Range to detect enemies
+    public LayerMask enemyLayer; // Layer mask used to identify enemies
 
-    private bool inCombat = false;
+    private bool inCombat = false; // Tracks whether combat is already active
 
-    void Update()
+    void Update() // Runs every frame
     {
-        if (inCombat) return;
+        if (inCombat) return; // Skip if combat already triggered
 
+        // Detect enemies in range
         Collider2D nearbyEnemy = Physics2D.OverlapCircle(transform.position, detectionRadius, enemyLayer);
         if (nearbyEnemy != null)
         {
-            Character worldEnemy = nearbyEnemy.GetComponent<Character>();
+            Character worldEnemy = nearbyEnemy.GetComponent<Character>(); // Get Character component
             if (worldEnemy != null)
             {
-                TriggerCombat(worldEnemy);
+                TriggerCombat(worldEnemy); // Start combat
             }
         }
     }
 
-    void TriggerCombat(Character worldEnemy)
+    void TriggerCombat(Character worldEnemy) // Handles setup and transition into combat
     {
-        Debug.Log("[CombatTrigger2D] Starting combat...");
-
-        // ? DO NOT pause yet — wait for combat setup to finish
-
         TransitionAnimator.StartCombatTransition(() =>
         {
-            // Find player character in the UI
-            Character player = FindCombatUIPlayer();
-            if (player == null)
-            {
-                Debug.LogError("[CombatTrigger2D] Combat UI PlayerCharacter not found!");
-                return;
-            }
+            Character player = FindCombatUIPlayer(); // Get player character from combat UI
+            if (player == null) return; // Exit if player not found
 
-            // Clean up world enemy
-            string enemyType = worldEnemy.name.Replace("(Clone)", "").Trim();
-            worldEnemy.gameObject.SetActive(false);
+            string enemyType = worldEnemy.name.Replace("(Clone)", "").Trim(); // Clean up name
+            worldEnemy.gameObject.SetActive(false); // Hide world enemy
 
-            // Find enemy character in the UI
-            Character combatEnemy = FindCombatUIEnemy(enemyType);
-            if (combatEnemy == null)
-            {
-                Debug.LogError($"[CombatTrigger2D] No matching combat UI enemy found for '{enemyType}'!");
-                return;
-            }
+            Character combatEnemy = FindCombatUIEnemy(enemyType); // Find matching combat UI enemy
+            if (combatEnemy == null) return; // Exit if match not found
 
-            // Enable and prepare both characters
-            player.gameObject.SetActive(true);
-            combatEnemy.gameObject.SetActive(true);
+            player.gameObject.SetActive(true); // Enable player in UI
+            combatEnemy.gameObject.SetActive(true); // Enable enemy in UI
 
-            player.ResetCharacter();
-            combatEnemy.ResetCharacter();
+            player.ResetCharacter(); // Reset player HP/status
+            combatEnemy.ResetCharacter(); // Reset enemy HP/status
 
-            player.ResetStartPos();
+            player.ResetStartPos(); // Cache UI start position
             combatEnemy.ResetStartPos();
 
-            player.SetOpponent(combatEnemy);
+            player.SetOpponent(combatEnemy); // Link opponents
             combatEnemy.SetOpponent(player);
 
-            TurnManager.Instance.StartCombat(player, combatEnemy);
-            CombatManager.Instance.SetupHealthBars(player, combatEnemy);
+            TurnManager.Instance.StartCombat(player, combatEnemy); // Begin combat turns
+            CombatManager.Instance.SetupHealthBars(player, combatEnemy); // Setup HP bars
 
-            // ? Pause overworld logic via PauseManager
             if (PauseManager.Instance != null && PauseManager.Instance.CurrentPauseType == PauseType.None)
             {
-                PauseManager.Instance.Pause(PauseType.Combat);
-                Debug.Log("[CombatTrigger2D] PauseManager ? Combat pause triggered");
+                PauseManager.Instance.Pause(PauseType.Combat); // Pause overworld
             }
 
-            inCombat = true;
+            inCombat = true; // Mark as in combat
         });
     }
 
-    Character FindCombatUIPlayer()
+    Character FindCombatUIPlayer() // Returns player character from UI
     {
         return combatUI.GetComponentInChildren<PlayerCharacter>(true);
     }
 
-    Character FindCombatUIEnemy(string enemyType)
+    Character FindCombatUIEnemy(string enemyType) // Finds matching UI enemy by name
     {
-        Debug.Log($"[CombatTrigger2D] FindCombatUIEnemy('{enemyType}')");
-
-        // We will consider ONLY root enemies (they have EnemyAI).
         Character[] allChars = combatUI.GetComponentsInChildren<Character>(true);
-
-        // First, collect all roots (Character that ALSO have EnemyAI).
         var rootEnemies = new System.Collections.Generic.List<Character>();
+
         foreach (var c in allChars)
         {
-            if (c == null) continue;
-            if (c.GetComponent<EnemyAI>() != null) // root marker
-            {
-                rootEnemies.Add(c);
-            }
+            if (c != null && c.GetComponent<EnemyAI>() != null)
+                rootEnemies.Add(c); // Only include root enemies
         }
-        Debug.Log($"[CombatTrigger2D] Found {rootEnemies.Count} root enemies (with EnemyAI) under combatUI.");
 
-        // Find the root whose name matches the type
         Character selectedRoot = null;
         foreach (var root in rootEnemies)
         {
@@ -114,61 +87,47 @@ public class CombatTrigger2D : MonoBehaviour
             }
         }
 
-        if (selectedRoot == null)
+        if (selectedRoot == null && rootEnemies.Count > 0)
         {
-            // fall back: pick the first root
-            if (rootEnemies.Count > 0)
-            {
-                selectedRoot = rootEnemies[0];
-                Debug.LogWarning($"[CombatTrigger2D] No root matched '{enemyType}'. Falling back to first root: {selectedRoot.name}");
-            }
-            else
-            {
-                Debug.LogError($"[CombatTrigger2D] No root enemies (with EnemyAI) found in combatUI!");
-                return null;
-            }
+            selectedRoot = rootEnemies[0]; // Fallback if no match
+        }
+        else if (selectedRoot == null)
+        {
+            return null; // No enemies found
         }
 
-        // Now, activate ONLY the selected root tree. Do NOT touch other Character objects
-        // outside this root (we won't blanket-disable everything anymore).
-        // Enable the whole selected root hierarchy:
-        selectedRoot.gameObject.SetActive(true);
+        selectedRoot.gameObject.SetActive(true); // Activate selected enemy
         foreach (Transform t in selectedRoot.transform.GetComponentsInChildren<Transform>(true))
-            t.gameObject.SetActive(true);
+            t.gameObject.SetActive(true); // Activate all children
 
-        // Deactivate OTHER root trees (only their roots; they will hide their children with them).
         foreach (var root in rootEnemies)
         {
-            if (root == selectedRoot) continue;
-            root.gameObject.SetActive(false);
+            if (root != selectedRoot)
+                root.gameObject.SetActive(false); // Deactivate others
         }
 
-        Debug.Log($"[CombatTrigger2D] Selected combat enemy root: {selectedRoot.name}");
         return selectedRoot;
     }
 
-    public void EndCombat()
+    public void EndCombat() // Called when combat finishes
     {
-        Debug.Log("[CombatTrigger2D] Ending combat and resetting state.");
-        combatUI.SetActive(false);
+        combatUI.SetActive(false); // Hide UI
 
         if (PauseManager.Instance != null && PauseManager.Instance.CurrentPauseType == PauseType.Combat)
         {
-            PauseManager.Instance.Resume();
-            Debug.Log("[CombatTrigger2D] PauseManager ? Combat pause ended");
+            PauseManager.Instance.Resume(); // Resume overworld
         }
 
-        // ? Should still be here
         MusicManager musicManager = FindObjectOfType<MusicManager>();
         if (musicManager != null)
         {
-            musicManager.EndCombatMusic();
+            musicManager.EndCombatMusic(); // Stop combat music
         }
 
-        inCombat = false;
+        inCombat = false; // Allow future encounters
     }
 
-    void OnDrawGizmosSelected()
+    void OnDrawGizmosSelected() // Draws detection range in Scene view
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, detectionRadius);

@@ -1,272 +1,241 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.SceneManagement;
+﻿using System.Collections; // For IEnumerator, Coroutine, etc.
+using System.Collections.Generic; // For List<T>, Dictionary<T>, etc.
+using UnityEngine; // Core Unity types
+using UnityEngine.SceneManagement; // For reloading the scene
 
+public enum HallwayWidth { Narrow = 1, Medium = 2, Wide = 3 } // Defines hallway thickness
+public enum RoomType { Caverns, Rooms, Winding } // Controls how rooms are generated
+public enum RoomShape { Square, Circular } // Determines room shape
 
-
-
-public enum HallwayWidth { Narrow = 1, Medium = 2, Wide = 3 }
-public enum RoomType { Caverns, Rooms, Winding }
-public enum RoomShape { Square, Circular }
-
-
-public class ForestManager : MonoBehaviour
+public class ForestManager : MonoBehaviour // Main script for procedural forest generation
 {
-    public GameObject[] randomItems, randomEnemies;
-    public GameObject FloorPrefab, WallPrefab, tilePrefab, ExitPrefab;
-    [UnityEngine.Range(50, 5000)] public int totalFloorCount;
-    [UnityEngine.Range(0, 100)] public int itemSpawnPercent;
-    [UnityEngine.Range(0, 100)] public int enemySpawnPercent;
-    public RoomType roomtype;
+    public GameObject[] randomItems, randomEnemies; // Prefab pools for random items and enemies
+    public GameObject FloorPrefab, WallPrefab, tilePrefab, ExitPrefab; // Main tile prefabs for generation
+    [UnityEngine.Range(50, 5000)] public int totalFloorCount; // How many tiles to generate
+    [UnityEngine.Range(0, 100)] public int itemSpawnPercent; // Chance to spawn items
+    [UnityEngine.Range(0, 100)] public int enemySpawnPercent; // Chance to spawn enemies
+    public RoomType roomtype; // Controls generation style
 
-    [Header("Item Spawn Blocking")]
-    public LayerMask itemBlockMask; // Assign this in the Inspector (e.g., Player, Trees, Items)
+    [Header("Item Spawn Blocking")] // Inspector section label
+    public LayerMask itemBlockMask; // Prevents item spawns on certain layers (e.g. player, trees)
 
-    [Header("Generation Options")]
-    public bool fixLonelyWalls = true;
-    public bool spawnEnemies = true;
-    public bool spawnItems = true;
-    public bool spawnTrees = true;
+    [Header("Generation Options")] // Inspector section label
+    public bool fixLonelyWalls = true; // If true, converts awkward wall tiles to floor
+    public bool spawnEnemies = true; // Enables enemy spawning
+    public bool spawnItems = true; // Enables item spawning
+    public bool spawnTrees = true; // Enables tree spawning
 
-    [Header("Exit Door Settings")]
-    public bool placeExitDoor = true;
+    [Header("Exit Door Settings")] // Inspector section label
+    public bool placeExitDoor = true; // Whether to spawn an exit
 
-    [Header("Walker Behavior")]
-    public bool usePersistentDirection = true;
+    [Header("Walker Behavior")] // Inspector section label
+    public bool usePersistentDirection = true; // If true, walker keeps same direction for longer
 
-    [Header("Hallway Settings")]
-    public bool useHallwayWidth = true;
-    public HallwayWidth hallwayWidth = HallwayWidth.Narrow;
-    public RoomShape roomShape = RoomShape.Square;
+    [Header("Hallway Settings")] // Inspector section label
+    public bool useHallwayWidth = true; // Enables hallway width control
+    public HallwayWidth hallwayWidth = HallwayWidth.Narrow; // Width of hallways
+    public RoomShape roomShape = RoomShape.Square; // Shape of generated rooms
 
-    [Header("Unique NPCs")]
-    [SerializeField] private GameObject merchantPrefab;
+    [Header("Unique NPCs")] // Inspector section label
+    [SerializeField] private GameObject merchantPrefab; // Merchant prefab
+    [SerializeField] private GameObject forestNomadPrefab; // Forest nomad prefab
+    private Vector3 forestNomadSpawnPosition = Vector3.positiveInfinity; // Used to track spawn location
 
-    [SerializeField] private GameObject forestNomadPrefab;
-    private Vector3 forestNomadSpawnPosition = Vector3.positiveInfinity;
+    [SerializeField] private GameObject organHuskPrefab; // Organ husk prefab
+    private Vector3 organHuskSpawnPosition = Vector3.positiveInfinity; // Used to track spawn location
 
-    [SerializeField] private GameObject organHuskPrefab;
-    private Vector3 organHuskSpawnPosition = Vector3.positiveInfinity;
+    [SerializeField] private GameObject woundedKnightPrefab; // Wounded knight prefab
+    private Vector3 woundedKnightSpawnPosition = Vector3.positiveInfinity; // Used to track spawn location
 
-    [SerializeField] private GameObject woundedKnightPrefab;
-    private Vector3 woundedKnightSpawnPosition = Vector3.positiveInfinity;
+    public GameObject[] randomTrees; // Pool of random tree prefabs
+    [Range(0, 100)] public int treeSpawnPercent; // Chance to spawn trees
 
+    [Header("Sacrificial Altar")] // Inspector section label
+    [SerializeField] private GameObject altarPrefab; // Altar prefab
+    private Vector3 altarSpawnPosition; // Where the first altar spawns
+    [SerializeField] private GameObject secondAltarPrefab; // Optional second altar prefab
+    private Vector3 secondAltarSpawnPosition; // Where the second altar spawns
 
-    public GameObject[] randomTrees;
-    [Range(0, 100)] public int treeSpawnPercent;
+    private Vector3 merchantSpawnPosition = Vector3.positiveInfinity; // Used to track spawn location
 
-    [Header("Sacrificial Altar")]
-    [SerializeField] private GameObject altarPrefab;
-    private Vector3 altarSpawnPosition;
-    [SerializeField] private GameObject secondAltarPrefab;
-    private Vector3 secondAltarSpawnPosition;
+    [UnityEngine.Range(0, 100)] public int windingHallPercentage; // For WindingWalker: % chance to make hall vs room
+    [HideInInspector] public float minX, maxX, minY, maxY; // Used for boundary clamping and object spawning
 
-    private Vector3 merchantSpawnPosition = Vector3.positiveInfinity;
+    List<Vector3> floorList = new List<Vector3>(); // List of generated floor tile positions
+    LayerMask floorMask, wallMask; // Layer masks for physics overlap checks
 
+    [Header("Player Start Settings")] // Inspector section label
+    public bool startInRoom = true; // If true, player starts in a room
+    public GameObject playerPrefab; // Player prefab to spawn at start
 
-    [UnityEngine.Range(0, 100)] public int windingHallPercentage;
-    [HideInInspector] public float minX, maxX, minY, maxY;
+    [Header("Allowed Generation Directions")] // Inspector section label
+    public bool allowUp = true; // Allow walker to move up
+    public bool allowDown = true; // Allow walker to move down
+    public bool allowLeft = true; // Allow walker to move left
+    public bool allowRight = true; // Allow walker to move right
 
-    List<Vector3> floorList = new List<Vector3>();
-    LayerMask floorMask, wallMask;
+    [Header("Generation Rules")] // Inspector section label
+    public bool preventLonelyTiles = true; // Prevents isolated floor tiles from being left behind
 
+    private Dictionary<Vector2Int, GameObject> floorTiles = new(); // Grid of placed floor tiles
+    private Dictionary<Vector2Int, GameObject> wallTiles = new(); // Grid of placed wall tiles
 
-    [Header("Player Start Settings")]
-    public bool startInRoom = true;  // if false, start in hallway
-    public GameObject playerPrefab;  // drop your player prefab here
+    public GameObject wallPrefab; // Wall prefab reference (may be redundant with WallPrefab)
 
-
-
-    [Header("Allowed Generation Directions")]
-    public bool allowUp = true;
-    public bool allowDown = true;
-    public bool allowLeft = true;
-    public bool allowRight = true;
-    [Header("Generation Rules")]
-    public bool preventLonelyTiles = true;
-
-    private Dictionary<Vector2Int, GameObject> floorTiles = new();
-private Dictionary<Vector2Int, GameObject> wallTiles = new();
-
-public GameObject wallPrefab; // Wall
-
-private readonly List<Vector2Int> cardinalDirs = new()
-{
-    Vector2Int.up,
-    Vector2Int.down,
-    Vector2Int.left,
-    Vector2Int.right
-};
-
-
-
-    void Start()
+    private readonly List<Vector2Int> cardinalDirs = new() // List of 4 cardinal directions
     {
-        floorMask = LayerMask.GetMask("Floor");
-        wallMask = LayerMask.GetMask("Wall");
+        Vector2Int.up,
+        Vector2Int.down,
+        Vector2Int.left,
+        Vector2Int.right
+    };
 
-        if (roomtype == RoomType.Caverns)
+    void Start() // Unity Start method
+    {
+        floorMask = LayerMask.GetMask("Floor"); // Cache floor layer mask
+        wallMask = LayerMask.GetMask("Wall"); // Cache wall layer mask
+
+        if (roomtype == RoomType.Caverns) // Override settings for caverns
         {
-            useHallwayWidth = false;
-            usePersistentDirection = false;
+            useHallwayWidth = false; // Disable wide halls
+            usePersistentDirection = false; // Force walker to change direction often
         }
 
-        switch (roomtype)
+        switch (roomtype) // Call correct generation method
         {
-            case RoomType.Caverns: RandomWalker(); break;
-            case RoomType.Rooms: RoomWalker(); break;
-            case RoomType.Winding: WindingWalker(); break;
+            case RoomType.Caverns: RandomWalker(); break; // Use random cavern walker
+            case RoomType.Rooms: RoomWalker(); break; // Use room walker
+            case RoomType.Winding: WindingWalker(); break; // Use winding walker
+        }
+    }
+
+    void Update() // Unity Update method (called every frame)
+    {
+        if (Application.isEditor && Input.GetKeyDown(KeyCode.Backspace)) // In editor, press Backspace to reset scene
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name); // Reloads current scene
         }
     }
 
 
-
-
-    void Update()
+    void RandomWalker() // Basic random step generator (for caverns)
     {
-        if (Application.isEditor && Input.GetKeyDown(KeyCode.Backspace))
+        startInRoom = false; // Caverns don't start in rooms
+
+        Vector3 curPos = Vector3.zero; // Start at origin
+
+        if (!InFloorList(curPos)) // Check if starting tile is already placed
+            floorList.Add(curPos); // Add first tile
+
+        int attempts = 0; // Track number of steps
+        int maxAttempts = 100000; // Safety cap to avoid infinite loops
+
+        while (floorList.Count < totalFloorCount && attempts < maxAttempts) // Loop until target floor count
         {
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+            Vector3 walkDir = RandomDirection(); // Choose a direction
+            curPos += walkDir; // Move walker
+
+            if (!InFloorList(curPos)) // Check if this tile is new
+                floorList.Add(curPos); // Add tile
+
+            attempts++; // Count this step
         }
+
+        StartCoroutine(DelayProgress()); // Proceed to post-gen phase
     }
 
-
-
-
-
-
-
-    void RandomWalker()
+    void RoomWalker() // Room generation + connecting hallways
     {
-        // Force this off for caverns
-        startInRoom = false;
+        Vector3 curPos = Vector3.zero; // Start at origin
 
-        Vector3 curPos = Vector3.zero;
-
-        if (!InFloorList(curPos))
-            floorList.Add(curPos);
-
-        int attempts = 0;
-        int maxAttempts = 100000;
-
-        while (floorList.Count < totalFloorCount && attempts < maxAttempts)
+        if (startInRoom) // Optionally begin with a room
         {
-            Vector3 walkDir = RandomDirection();
-            curPos += walkDir;
-
-            if (!InFloorList(curPos))
+            RandomRoom(curPos); // Spawn starting room
+        }
+        else
+        {
+            if (!InFloorList(curPos)) // Add tile if not placed yet
                 floorList.Add(curPos);
-
-            attempts++;
         }
 
-        StartCoroutine(DelayProgress());
+        while (floorList.Count < totalFloorCount) // Loop until enough floor
+        {
+            curPos = TakeAHike(curPos); // Move walker in hallway
+            RandomRoom(curPos); // Add a room
+        }
+
+        StartCoroutine(DelayProgress()); // Begin post-gen logic
     }
 
-
-    void RoomWalker()
+    void WindingWalker() // Random hallways, sometimes rooms
     {
-        Vector3 curPos = Vector3.zero;
+        Vector3 curPos = Vector3.zero; // Start at origin
 
-        if (startInRoom)
+        if (startInRoom) // Optionally start in a room
         {
             RandomRoom(curPos);
         }
         else
         {
-            if (!InFloorList(curPos))
+            if (!InFloorList(curPos)) // Add single tile if not placed
                 floorList.Add(curPos);
         }
 
-        while (floorList.Count < totalFloorCount)
+        while (floorList.Count < totalFloorCount) // Keep walking until enough tiles
         {
-            curPos = TakeAHike(curPos);
-            RandomRoom(curPos);
-        }
+            curPos = TakeAHike(curPos); // Take a hallway step
 
-        StartCoroutine(DelayProgress());
-    }
-
-
-
-    void WindingWalker()
-    {
-        Vector3 curPos = Vector3.zero;
-
-        if (startInRoom)
-        {
-            RandomRoom(curPos);
-        }
-        else
-        {
-            if (!InFloorList(curPos))
-                floorList.Add(curPos);
-        }
-
-        while (floorList.Count < totalFloorCount)
-        {
-            curPos = TakeAHike(curPos);
-            int roll = Random.Range(0, 100);
-            if (roll > windingHallPercentage)
+            int roll = Random.Range(0, 100); // Random number 0–99
+            if (roll > windingHallPercentage) // Chance to generate a room
             {
-                RandomRoom(curPos);
+                RandomRoom(curPos); // Add a room
             }
         }
 
-        StartCoroutine(DelayProgress());
+        StartCoroutine(DelayProgress()); // Begin next phase
     }
 
-
-
-
-
-
-
-
-    Vector3 TakeAHike(Vector3 myPos)
+    Vector3 TakeAHike(Vector3 myPos) // Moves forward a few tiles and places hallways
     {
-        Vector3 walkDir = RandomDirection();
-        int walkLength = Random.Range(9, 18);
+        Vector3 walkDir = RandomDirection(); // Choose a direction
+        int walkLength = Random.Range(9, 18); // Number of steps to take
 
-        List<int> offsets = new();
+        List<int> offsets = new(); // Used to widen hallway
 
-        if (!useHallwayWidth)
+        if (!useHallwayWidth) // Single-width hall
         {
             offsets.Add(0);
         }
-        else
+        else // Wider hallways
         {
             int width = (int)hallwayWidth;
-            if (width == 1)
-                offsets.Add(0);
-            else if (width == 2)
-                offsets.AddRange(new[] { 0, 1 });
-            else if (width == 3)
-                offsets.AddRange(new[] { -1, 0, 1 });
+
+            if (width == 1) offsets.Add(0); // Narrow
+            else if (width == 2) offsets.AddRange(new[] { 0, 1 }); // Medium
+            else if (width == 3) offsets.AddRange(new[] { -1, 0, 1 }); // Wide
         }
 
-        for (int i = 0; i < walkLength; i++)
+        for (int i = 0; i < walkLength; i++) // Take each step
         {
-            // ?? If non-persistent, roll a new direction each step
-            if (!usePersistentDirection)
+            if (!usePersistentDirection) // If allowed, reroll direction per step
                 walkDir = RandomDirection();
 
-            foreach (int offset in offsets)
+            foreach (int offset in offsets) // For each offset from center
             {
-                Vector3 spreadOffset = (walkDir == Vector3.up || walkDir == Vector3.down)
+                Vector3 spreadOffset = (walkDir == Vector3.up || walkDir == Vector3.down) // Decide offset axis
                     ? new Vector3(offset, 0, 0)
                     : new Vector3(0, offset, 0);
 
-                Vector3 posToAdd = myPos + spreadOffset;
-                if (!InFloorList(posToAdd))
+                Vector3 posToAdd = myPos + spreadOffset; // Tile to place
+
+                if (!InFloorList(posToAdd)) // Avoid duplicates
                     floorList.Add(posToAdd);
             }
 
-            myPos += walkDir;
+            myPos += walkDir; // Move forward
         }
 
-        return myPos;
+        return myPos; // Return updated position
     }
 
 
@@ -388,119 +357,61 @@ private readonly List<Vector2Int> cardinalDirs = new()
 
 
 
-    void RandomTrees()
-{
-    Vector2 hitSize = Vector2.one * 0.8f; // Box size for overlap checks
-
-    int totalChecked = 0; // Total tiles processed
-    int spawned = 0; // Trees successfully spawned
-    int skippedWrongType = 0; // Skipped: not tempFloor
-    int skippedTooCloseToWall = 0; // Skipped: adjacent to wall
-    int skippedTooFarFromWall = 0; // Skipped: no wall nearby
-    int skippedNearMerchant = 0; // Skipped: near merchant
-    int skippedNearAltar = 0; // Skipped: near altar
-    int skippedNearKnight = 0; // Skipped: near knight
-    int skippedNearHusk = 0; // Skipped: near husk
-    int skippedRoll = 0; // Skipped: RNG failed
-    int missingRenderer = 0; // Spawned, but missing sprite renderer
-
-    float merchantSafeRadius = 5f; // Distance from merchant to avoid
-    float altarSafeRadius = 5f; // Distance from altar, knight, husk to avoid
-
-    List<GameObject> allTrees = new List<GameObject>(); // Stores all spawned trees
-
-    foreach (Transform tile in transform) // Loop through all child tiles
+    void RandomTrees() // Spawns trees only on suitable floor tiles, respecting spacing rules
     {
-        totalChecked++;
+        Vector2 hitSize = Vector2.one * 0.8f; // Overlap box size for wall detection
 
-        if (tile.name != "tempFloor") // Only spawn trees on tempFloor tiles
+        float merchantSafeRadius = 5f; // Min distance from merchant
+        float altarSafeRadius = 5f; // Min distance from altar, knight, husk
+
+        foreach (Transform tile in transform) // Iterate through all child tiles
         {
-            skippedWrongType++;
-            continue;
+            if (tile.name != "tempFloor") continue; // Skip if not a valid floor tile
+
+            Vector3 pos = tile.position; // Position of this tile
+
+            // Skip if tile is near any blocked character or object
+            if (
+                Vector3.Distance(pos, merchantSpawnPosition) < merchantSafeRadius ||
+                Vector3.Distance(pos, altarSpawnPosition) < altarSafeRadius ||
+                Vector3.Distance(pos, secondAltarSpawnPosition) < altarSafeRadius ||
+                Vector3.Distance(pos, woundedKnightSpawnPosition) < altarSafeRadius ||
+                Vector3.Distance(pos, organHuskSpawnPosition) < altarSafeRadius
+            ) continue;
+
+            // Skip if tile is adjacent to any wall
+            if (
+                Physics2D.OverlapBox(pos + Vector3.up, hitSize, 0, wallMask) ||
+                Physics2D.OverlapBox(pos + Vector3.down, hitSize, 0, wallMask) ||
+                Physics2D.OverlapBox(pos + Vector3.left, hitSize, 0, wallMask) ||
+                Physics2D.OverlapBox(pos + Vector3.right, hitSize, 0, wallMask)
+            ) continue;
+
+            // Skip if tile has no nearby wall within 2 tiles in any direction
+            if (!(
+                Physics2D.OverlapBox(pos + Vector3.up * 2, hitSize, 0, wallMask) ||
+                Physics2D.OverlapBox(pos + Vector3.down * 2, hitSize, 0, wallMask) ||
+                Physics2D.OverlapBox(pos + Vector3.left * 2, hitSize, 0, wallMask) ||
+                Physics2D.OverlapBox(pos + Vector3.right * 2, hitSize, 0, wallMask)
+            )) continue;
+
+            // Skip based on tree spawn chance
+            if (Random.Range(0, 101) > treeSpawnPercent) continue;
+
+            int treeIndex = Random.Range(0, randomTrees.Length); // Choose random tree prefab
+            GameObject tree = Instantiate(randomTrees[treeIndex], pos, Quaternion.identity); // Spawn tree
+            tree.name = randomTrees[treeIndex].name; // Name it like prefab
+            tree.transform.SetParent(tile); // Parent tree to tile
+            tree.transform.position += new Vector3(0, 0, -2); // Push back in Z
+
+            SpriteRenderer sr = tree.GetComponentInChildren<SpriteRenderer>(); // Find sprite renderer
+            if (sr != null)
+            {
+                sr.sortingLayerName = "Foreground"; // Render in front of floors
+                sr.sortingOrder = 10000 - Mathf.RoundToInt(pos.y * 100); // Depth sort using Y
+            }
         }
-
-        Vector3 pos = tile.position;
-
-        if (Vector3.Distance(pos, merchantSpawnPosition) < merchantSafeRadius) // Too close to merchant
-        {
-            skippedNearMerchant++;
-            continue;
-        }
-
-        if (Vector3.Distance(pos, altarSpawnPosition) < altarSafeRadius) // Too close to altar
-        {
-            skippedNearAltar++;
-            continue;
-        }
-
-        if (Vector3.Distance(pos, secondAltarSpawnPosition) < altarSafeRadius) // Too close to second altar
-        {
-            skippedNearAltar++;
-            continue;
-        }
-
-        if (Vector3.Distance(pos, woundedKnightSpawnPosition) < altarSafeRadius) // Too close to knight
-        {
-            skippedNearKnight++;
-            continue;
-        }
-
-        if (Vector3.Distance(pos, organHuskSpawnPosition) < altarSafeRadius) // Too close to husk
-        {
-            skippedNearHusk++;
-            continue;
-        }
-
-        if ( // Skip if adjacent to wall
-            Physics2D.OverlapBox(pos + Vector3.up, hitSize, 0, wallMask) ||
-            Physics2D.OverlapBox(pos + Vector3.down, hitSize, 0, wallMask) ||
-            Physics2D.OverlapBox(pos + Vector3.left, hitSize, 0, wallMask) ||
-            Physics2D.OverlapBox(pos + Vector3.right, hitSize, 0, wallMask)
-        )
-        {
-            skippedTooCloseToWall++;
-            continue;
-        }
-
-        bool nearWall = // Must have a wall within 2 tiles
-            Physics2D.OverlapBox(pos + Vector3.up * 2, hitSize, 0, wallMask) ||
-            Physics2D.OverlapBox(pos + Vector3.down * 2, hitSize, 0, wallMask) ||
-            Physics2D.OverlapBox(pos + Vector3.left * 2, hitSize, 0, wallMask) ||
-            Physics2D.OverlapBox(pos + Vector3.right * 2, hitSize, 0, wallMask);
-
-        if (!nearWall) // Reject if no nearby wall
-        {
-            skippedTooFarFromWall++;
-            continue;
-        }
-
-        if (Random.Range(0, 101) > treeSpawnPercent) // Tree didn't pass spawn chance roll
-        {
-            skippedRoll++;
-            continue;
-        }
-
-        int treeIndex = Random.Range(0, randomTrees.Length); // Pick a random tree
-        GameObject tree = Instantiate(randomTrees[treeIndex], pos, Quaternion.identity); // Spawn tree
-        tree.name = randomTrees[treeIndex].name;
-        tree.transform.SetParent(tile); // Parent to tile
-        tree.transform.position += new Vector3(0, 0, -2); // Push back in Z for layering
-
-        SpriteRenderer sr = tree.GetComponentInChildren<SpriteRenderer>();
-        if (sr != null)
-        {
-            sr.sortingLayerName = "Foreground"; // Set layer
-            sr.sortingOrder = 10000 - Mathf.RoundToInt(pos.y * 100); // Depth sort by Y
-        }
-        else
-        {
-            missingRenderer++; // Log missing renderer
-        }
-
-        allTrees.Add(tree); // Track spawned tree
-        spawned++;
     }
-}
 
 
     void SpawnAltar()
@@ -760,84 +671,61 @@ private readonly List<Vector2Int> cardinalDirs = new()
     }
 
     private void FixLonelyWalls()
+{
+    HashSet<int> badBitmaskIDs = new() { 5, 7, 10, 11, 13, 14, 15 }; // IDs of bitmask patterns that represent isolated/awkward walls
+    bool tilesRemoved; // Tracks if any walls were removed in the last loop
+
+    do // Repeat until no more lonely walls are found
     {
-        Debug.Log("[FixLonelyWalls] Starting cleanup loop..."); // Log start of cleanup process
+        tilesRemoved = false;
+        List<Vector2Int> toRemove = new(); // List of wall positions to remove
 
-        HashSet<int> badBitmaskIDs = new() { 5, 7, 10, 11, 13, 14, 15 }; // Bitmask values that indicate awkward/isolated wall tiles
-        int totalRemoved = 0; // Counter for how many walls were removed
-        bool tilesRemoved; // Tracks if any walls were removed in the last loop
-
-        do // Repeat until no more lonely walls are found
+        foreach (var kvp in wallTiles) // Loop through all wall tiles
         {
-            tilesRemoved = false;
-            List<Vector2Int> toRemove = new(); // List of wall positions to remove
+            Vector2Int pos = kvp.Key; // Grid position of wall
+            GameObject wallObj = kvp.Value; // Wall GameObject at that position
+            RoundedWallTile tile = wallObj.GetComponent<RoundedWallTile>(); // Get the wall's bitmask script
 
-            foreach (var kvp in wallTiles) // Loop through all wall tiles
+            if (tile == null) continue; // Skip if missing the component
+
+            int bitmask = tile.GetActualBitmask(); // Get actual bitmask for wall
+            if (badBitmaskIDs.Contains(bitmask)) // If wall is "lonely", mark for removal
             {
-                Vector2Int pos = kvp.Key;
-                GameObject wallObj = kvp.Value;
-                RoundedWallTile tile = wallObj.GetComponent<RoundedWallTile>(); // Try to get the bitmasking component
-
-                if (tile == null) // Missing component warning
-                {
-                    Debug.LogWarning($"[FixLonelyWalls] Wall at {pos} missing RoundedWallTile.");
-                    continue;
-                }
-
-                int bitmask = tile.GetActualBitmask(); // Get the actual bitmask for the tile
-                Debug.Log($"[FixLonelyWalls] Wall at {pos} has bitmask {bitmask}");
-
-                if (badBitmaskIDs.Contains(bitmask)) // If it's a "lonely" wall, mark for removal
-                {
-                    toRemove.Add(pos);
-                }
-            }
-
-            foreach (Vector2Int pos in toRemove) // Remove all identified lonely wall tiles
-            {
-                if (wallTiles.TryGetValue(pos, out GameObject wall))
-                {
-                    Destroy(wall); // Delete the wall object
-                    wallTiles.Remove(pos); // Remove from wall dictionary
-                    tilesRemoved = true;
-                    totalRemoved++; // Count it
-                }
-
-                if (!floorTiles.ContainsKey(pos)) // If there's no floor underneath, create one
-                {
-                    GameObject newFloor = Instantiate(tilePrefab, new Vector3(pos.x, pos.y, 0), Quaternion.identity, transform);
-                    newFloor.name = tilePrefab.name;
-                    floorTiles[pos] = newFloor; // Add to floor tile dictionary
-                }
-            }
-
-        } while (tilesRemoved); // Keep looping if walls were removed this round
-
-        Debug.Log($"[FixLonelyWalls] Finished. Total removed: {totalRemoved}"); // Log cleanup summary
-    }
-
-    private void UpdateBitmaskedTileSprites()
-    {
-        Debug.Log("[UpdateBitmaskedTileSprites] Refreshing RoundedWallTile visuals..."); // Start debug log
-
-        int refreshed = 0; // Counter for how many wall sprites were updated
-        foreach (var wall in wallTiles.Values) // Loop through all wall GameObjects
-        {
-            if (wall == null) continue; // Skip if reference is missing
-
-            RoundedWallTile tile = wall.GetComponent<RoundedWallTile>(); // Try to get the tile script
-            if (tile != null)
-            {
-                tile.RefreshBitmaskVisual(); // Call method to refresh sprite based on neighbors
-                refreshed++; // Count successful updates
-            }
-            else
-            {
-                Debug.LogWarning($"[UpdateBitmaskedTileSprites] Wall at {wall.transform.position} missing RoundedWallTile component."); // Log missing component
+                toRemove.Add(pos);
             }
         }
 
-        Debug.Log($"[UpdateBitmaskedTileSprites] Refreshed {refreshed} walls."); // Summary log
+        foreach (Vector2Int pos in toRemove) // Process all tiles marked for removal
+        {
+            if (wallTiles.TryGetValue(pos, out GameObject wall)) // Confirm the wall still exists
+            {
+                Destroy(wall); // Remove the GameObject
+                wallTiles.Remove(pos); // Remove from wall dictionary
+                tilesRemoved = true; // Track that we made a change
+            }
+
+            if (!floorTiles.ContainsKey(pos)) // If there's no floor beneath, create one
+            {
+                GameObject newFloor = Instantiate(tilePrefab, new Vector3(pos.x, pos.y, 0), Quaternion.identity, transform); // Instantiate floor
+                newFloor.name = tilePrefab.name; // Name it consistently
+                floorTiles[pos] = newFloor; // Register it in floor dictionary
+            }
+        }
+    } while (tilesRemoved); // Keep looping if more tiles were removed
+}
+
+    private void UpdateBitmaskedTileSprites()
+    {
+        foreach (var wall in wallTiles.Values) // Loop through all wall tiles
+        {
+            if (wall == null) continue; // Skip if reference is missing
+
+            RoundedWallTile tile = wall.GetComponent<RoundedWallTile>(); // Get the RoundedWallTile script
+            if (tile != null)
+            {
+                tile.RefreshBitmaskVisual(); // Update the wall’s sprite to match surroundings
+            }
+        }
     }
 
     void ExitDoorway()

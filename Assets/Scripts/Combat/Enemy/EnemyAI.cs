@@ -1,122 +1,76 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+// Controls enemy behavior during its turn in battle
 public class EnemyAI : MonoBehaviour
 {
-    public Character character; // the ROOT enemy Character
+    public Character character; // Reference to the Character component.
 
     void Awake()
     {
-        character = GetComponent<Character>();
-        if (character == null)
-        {
-            Debug.LogError($"[EnemyAI] {name} could not find its Character component!");
-        }
+        character = GetComponent<Character>(); // Get Character on awake.
     }
 
     void OnEnable()
     {
         if (TurnManager.Instance != null)
-        {
-            TurnManager.Instance.OnBeginTurn += OnBeginTurn;
-        }
-        else
-        {
-            Debug.LogError("[EnemyAI] ERROR: TurnManager instance is NULL!");
-        }
+            TurnManager.Instance.OnBeginTurn += OnBeginTurn; // Subscribe to turn event.
     }
 
     void OnDisable()
     {
         if (TurnManager.Instance != null)
-        {
-            TurnManager.Instance.OnBeginTurn -= OnBeginTurn;
-        }
+            TurnManager.Instance.OnBeginTurn -= OnBeginTurn; // Unsubscribe when disabled.
     }
 
     void OnBeginTurn(Character activeCharacter)
     {
-        if (character != activeCharacter) return;
+        if (character != activeCharacter) return; // Act only on this enemy's turn.
 
-        Character player = FindPlayerCharacter();
-        if (player == null)
-        {
-            Debug.LogError("[EnemyAI] Could not find player character!");
-            return;
-        }
+        Character player = FindPlayerCharacter(); // Find player to target.
+        if (player == null) return;
 
-        CombatAction chosenAction = DecideAction(player);
-
-        // No SetOpponent required — Character.AttackOpponent will resolve
-        // the player as fallback if no opponent is set.
-        character.CastCombatAction(chosenAction);
+        CombatAction chosenAction = DecideAction(player); // Choose what to do.
+        character.CastCombatAction(chosenAction); // Execute it.
     }
 
     Character FindPlayerCharacter()
     {
-        Character[] all = GameObject.FindObjectsOfType<Character>(true);
+        Character[] all = GameObject.FindObjectsOfType<Character>(true); // Include inactive.
         foreach (Character c in all)
-        {
-            if (c.IsPlayer) return c;
-        }
+            if (c.IsPlayer) return c; // First found player.
         return null;
     }
 
-    // Use your existing decide logic (unchanged)
     CombatAction DecideAction(Character player)
     {
-        if (character.CombatActions.Count == 0)
-        {
-            Debug.LogError($"[EnemyAI] {character.name} has no combat actions assigned!");
-            return null;
-        }
+        if (character.CombatActions.Count == 0) return null; // Can't act.
 
         foreach (CombatAction action in character.CombatActions)
-        {
             if (action.HealAmount > 0 && character.CurHp <= character.MaxHp * 0.3f)
-            {
-                Debug.Log($"[EnemyAI] {character.name} low HP -> healing: {action.DisplayName}");
-                return action;
-            }
-        }
+                return action; // Prioritize healing.
 
         if (player.CurHp <= player.MaxHp * 0.3f)
-        {
             foreach (CombatAction action in character.CombatActions)
-            {
                 if (action.Damage <= 15)
-                {
-                    Debug.Log($"[EnemyAI] Player weak -> use weaker attack: {action.DisplayName}");
-                    return action;
-                }
-            }
-        }
+                    return action; // Controlled attack.
 
-        CombatAction randomAttack = character.CombatActions[Random.Range(0, character.CombatActions.Count)];
-        Debug.Log($"[EnemyAI] Random attack: {randomAttack.DisplayName}");
-        return randomAttack;
+        return character.CombatActions[Random.Range(0, character.CombatActions.Count)]; // Fallback: random.
     }
 
-    Character PickAttackSource()
+    Character PickAttackSource()// not currently in use
     {
-        // Collect active limb Characters under this root (exclude the root itself)
         var limbs = new List<Character>();
-        Character[] underRoot = GetComponentsInChildren<Character>(true);
+        Character[] underRoot = GetComponentsInChildren<Character>(true); // Include inactive children.
         foreach (var c in underRoot)
         {
-            if (c == null) continue;
-            if (c == character) continue;                 // skip root
-            if (!c.gameObject.activeInHierarchy) continue; // only active limbs
+            if (c == null || c == character || !c.gameObject.activeInHierarchy) continue; // Skip self or inactive.
             limbs.Add(c);
         }
 
         if (limbs.Count > 0)
-        {
-            var limb = limbs[Random.Range(0, limbs.Count)];
-            return limb;
-        }
+            return limbs[Random.Range(0, limbs.Count)]; // Random active limb.
 
-        // fallback to root if no limbs
-        return character;
+        return character; // Default to self.
     }
 }

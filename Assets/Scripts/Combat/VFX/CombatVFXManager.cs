@@ -2,18 +2,18 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class VFXManager : MonoBehaviour
+public class VFXManager : MonoBehaviour 
 {
     public static VFXManager Instance { get; private set; }
 
-    [SerializeField] private List<GameObject> vfxPrefabs; // Assign VFX manually in Inspector
-    private Dictionary<string, GameObject> vfxDictionary = new Dictionary<string, GameObject>();
+    [SerializeField] private List<GameObject> vfxPrefabs; // List of VFX GameObjects set in Inspector
+    private Dictionary<string, GameObject> vfxDictionary = new Dictionary<string, GameObject>(); // Map names to objects
 
     void Awake()
     {
-        if (Instance != null && Instance != this)
+        if (Instance != null && Instance != this) // Singleton pattern
         {
-            Destroy(gameObject);
+            Destroy(gameObject); // Destroy duplicate
             return;
         }
         Instance = this;
@@ -21,67 +21,47 @@ public class VFXManager : MonoBehaviour
 
     void Start()
     {
-        InitializeVFXDictionary();
+        InitializeVFXDictionary(); // Populate dictionary on start
     }
 
     private void InitializeVFXDictionary()
     {
-        vfxDictionary.Clear();
+        vfxDictionary.Clear(); // Reset dictionary
 
-        foreach (GameObject vfx in vfxPrefabs)
+        foreach (GameObject vfx in vfxPrefabs) // Loop through prefabs
         {
             if (vfx != null)
             {
-                vfxDictionary[vfx.name] = vfx;
-                vfx.SetActive(false); // Ensure all are disabled at start
-                Debug.Log($"[VFXManager] Registered VFX: {vfx.name}");
-            }
-            else
-            {
-                Debug.LogWarning("[VFXManager] Skipping a null VFX entry in the list.");
+                vfxDictionary[vfx.name] = vfx; // Add to dictionary by name
+                vfx.SetActive(false); // Ensure all VFX are disabled initially
             }
         }
     }
 
     public void PlayVFX(string vfxName)
     {
-        if (!vfxDictionary.ContainsKey(vfxName))
-        {
-            Debug.LogWarning($"[VFX] No VFX found with name: {vfxName}");
-            return;
-        }
+        if (!vfxDictionary.ContainsKey(vfxName)) return; // Ignore if not found
 
         GameObject vfx = vfxDictionary[vfxName];
+        vfx.SetActive(true); // Show VFX
 
-        // Enable VFX
-        vfx.SetActive(true);
-        Debug.Log($"[VFX] Enabled {vfx.name}");
-
-        // Reset and play animation
-        Animator animator = vfx.GetComponent<Animator>();
+        Animator animator = vfx.GetComponent<Animator>(); // Try to get animator
         if (animator)
         {
-            animator.Rebind();
-            animator.Play(0);
-            Debug.Log($"[VFX] Playing animation on {vfx.name}");
-
-            StartCoroutine(DisableVFXAfterAnimation(vfx, animator));
+            animator.Rebind(); // Reset animation state
+            animator.Play(0); // Play first animation state
+            StartCoroutine(DisableVFXAfterAnimation(vfx, animator)); // Disable after play
         }
         else
         {
-            Debug.LogWarning($"[VFX] Animator not found on {vfx.name}, disabling after 1s fallback.");
-            StartCoroutine(DisableVFXAfterAnimation(vfx, null));
+            StartCoroutine(DisableVFXAfterAnimation(vfx, null)); // Fallback timer
         }
     }
 
     private IEnumerator DisableVFXAfterAnimation(GameObject vfx, Animator animator)
     {
-        float animationLength = animator != null ? animator.GetCurrentAnimatorStateInfo(0).length : 1.0f;
-        Debug.Log($"[VFX] Animation length: {animationLength} seconds");
-
-        yield return new WaitForSeconds(animationLength);
-
-        vfx.SetActive(false);
-        Debug.Log($"[VFX] Disabled {vfx.name} after animation.");
+        float animationLength = animator != null ? animator.GetCurrentAnimatorStateInfo(0).length : 1.0f; // Use animation length or default
+        yield return new WaitForSeconds(animationLength); // Wait before hiding
+        vfx.SetActive(false); // Hide VFX
     }
 }

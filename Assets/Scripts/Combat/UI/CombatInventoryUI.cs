@@ -4,103 +4,89 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
+
+
+
+//currently under construction/ not being used in this version of the game (just for the time being)
+
 public class CombatInventoryUI : MonoBehaviour
 {
-    public GameObject combatItemList; // Assign "CombatItemList" in the Inspector
-    public Transform contentParent;   // Assign the "Content" object inside the Scroll View
-    public GameObject buttonPrefab;   // Assign the CombatInventoryButton prefab in the Inspector
+    // === References to UI elements (assign in Inspector) ===
+    public GameObject combatItemList;         // Container that holds the item list UI
+    public Transform contentParent;           // Parent object for item buttons (usually a ScrollView's Content)
+    public GameObject buttonPrefab;           // Prefab for each inventory button (linked to a CombatAction)
 
-    private Inventory inventory;
-    private PlayerNeeds playerNeeds;
+    // === Internal references ===
+    private Inventory inventory;              // Reference to player's inventory
+    private PlayerNeeds playerNeeds;          // Reference to player stats (used when consuming items)
 
     void Start()
     {
+        // Get reference to the Inventory singleton
         inventory = Inventory.instance;
+
+        // Find the PlayerNeeds component in the scene
         playerNeeds = FindObjectOfType<PlayerNeeds>();
 
-        if (inventory == null)
-        {
-            Debug.LogError("[CombatInventoryUI] Inventory instance not found!");
-        }
-
-        if (playerNeeds == null)
-        {
-            Debug.LogError("[CombatInventoryUI] PlayerNeeds component not found!");
-        }
-
-        if (combatItemList == null)
-        {
-            Debug.LogError("[CombatInventoryUI] ERROR: CombatItemList is NULL! Make sure it's assigned in the Inspector.");
-        }
-        else
-        {
-            combatItemList.SetActive(false); // Hide at start
-        }
+        // Sanity check — ensure required references are present
+        if (combatItemList != null)
+            combatItemList.SetActive(false); // Hide inventory UI at start
     }
 
-    // **Directly toggled by CombatActionUI**
+    // === This is triggered externally by CombatActionUI to show the item list ===
     public void PopulateItemList()
     {
-        if (combatItemList == null)
-        {
-            Debug.LogError("[CombatInventoryUI] ERROR: CombatItemList is NULL! Can't populate items.");
-            return;
-        }
+        // Safety check: don't proceed if UI root is missing
+        if (combatItemList == null) return;
 
-        // Clear previous buttons
+        // Clear all previously created item buttons
         foreach (Transform child in contentParent)
         {
             Destroy(child.gameObject);
         }
 
-        Debug.Log($"[CombatInventoryUI] Populating item list... Inventory slots: {inventory.slots.Length}");
-
-        // Get player's items
+        // Iterate through each slot in the inventory
         foreach (ItemSlot slot in inventory.slots)
         {
+            // Only show consumable items that are present in inventory
             if (slot.item != null && slot.item.type == ItemType.Consumable)
             {
-                Debug.Log($"[CombatInventoryUI] Found item: {slot.item.displayName} (x{slot.quantity})");
-
+                // Create a new button for this item
                 GameObject buttonObj = Instantiate(buttonPrefab, contentParent);
+
+                // Set the button's text (e.g., "Potion (x2)")
                 buttonObj.GetComponentInChildren<TextMeshProUGUI>().text = $"{slot.item.displayName} ({slot.quantity})";
 
+                // Add functionality to the button if a CombatAction is linked
                 Button button = buttonObj.GetComponent<Button>();
 
-                // **Check if the item has a matching combat action**
+                // Retrieve the CombatAction associated with this item
                 CombatAction combatAction = CombatActionDatabase.Instance.GetCombatActionForItem(slot.item);
-                if (combatAction == null)
+
+                // Only hook up the button if the action is valid
+                if (combatAction != null)
                 {
-                    Debug.LogWarning($"[CombatInventoryUI] No CombatAction found for {slot.item.displayName}! Button will not work.");
-                }
-                else
-                {
-                    Debug.Log($"[CombatInventoryUI] Assigning CombatAction '{combatAction.DisplayName}' to {slot.item.displayName} button.");
+                    // Add the listener for when the button is clicked
                     button.onClick.AddListener(() => UseItem(slot, combatAction));
                 }
             }
         }
     }
 
+    // === Called when the player clicks an item button ===
     void UseItem(ItemSlot slot, CombatAction combatAction)
     {
-        Debug.Log($"[CombatInventoryUI] Using item: {slot.item.displayName}, linked to action: {combatAction.DisplayName}");
-
-        // **Ensure the player exists**
+        // Safety: ensure a valid character is currently taking a turn
         Character player = TurnManager.Instance.CurrentCharacter;
-        if (player == null)
-        {
-            Debug.LogError("[CombatInventoryUI] ERROR: No CurrentCharacter found in TurnManager!");
-            return;
-        }
+        if (player == null) return;
 
-        // **Tell the player to use the combat action**
+        // Have the player execute the item’s combat action
         player.CastCombatAction(combatAction);
 
-        // **Remove item from inventory**
+        // Remove the used item from inventory
         inventory.RemoveItem(slot.item);
-        PopulateItemList(); // Refresh UI
 
-        Debug.Log($"[CombatInventoryUI] {slot.item.displayName} used, UI updated.");
+        // Refresh the UI list to reflect updated item count
+        PopulateItemList();
     }
 }
