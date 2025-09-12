@@ -1,7 +1,7 @@
 using UnityEngine;
 
-[RequireComponent(typeof(SpriteRenderer))]
-public class RoundedFloorTile : MonoBehaviour
+[RequireComponent(typeof(SpriteRenderer))] 
+public class RoundedFloorTile : MonoBehaviour // not currently in use
 {
     [Header("Main Floor Edge Sprites (0–15)")]
     public Sprite[] edgeSprites = new Sprite[16];  // Cardinal direction bitmask (0–15)

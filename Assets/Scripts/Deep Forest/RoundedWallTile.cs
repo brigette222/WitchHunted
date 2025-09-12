@@ -1,42 +1,43 @@
 using UnityEngine;
 
-[RequireComponent(typeof(SpriteRenderer))]
+
+[RequireComponent(typeof(SpriteRenderer))]// Ensure this GameObject always has a SpriteRenderer attached
 public class RoundedWallTile : MonoBehaviour
 {
     [Header("Main Wall Settings")]
-    public Sprite[] edgeSprites = new Sprite[16];
-    public LayerMask floorMask;
+    public Sprite[] edgeSprites = new Sprite[16]; // Array of wall edge sprites (indexed by bitmask values)
+    public LayerMask floorMask; // Defines which layer is considered "floor" for adjacency checks
 
     [Header("Top Visual Tree Settings")]
-    public GameObject topVisualPrefab;
-    public Sprite[] topTreeSprites = new Sprite[16];
+    public GameObject topVisualPrefab; // Prefab for visuals above the wall (trees, etc.)
+    public Sprite[] topTreeSprites = new Sprite[16]; // Optional sprite variations based on bitmask
 
     [Header("Side Visual Settings")]
-    public GameObject leftVisualPrefab;
-    public Sprite[] leftSprites = new Sprite[16];
-    public GameObject rightVisualPrefab;
-    public Sprite[] rightSprites = new Sprite[16];
-    public GameObject bottomVisualPrefab;
-    public Sprite[] bottomSprites = new Sprite[16];
+    public GameObject leftVisualPrefab; // Prefab for visuals on the left side
+    public Sprite[] leftSprites = new Sprite[16]; // Sprites for left visuals
+    public GameObject rightVisualPrefab; // Prefab for visuals on the right side
+    public Sprite[] rightSprites = new Sprite[16]; // Sprites for right visuals
+    public GameObject bottomVisualPrefab; // Prefab for visuals at the bottom
+    public Sprite[] bottomSprites = new Sprite[16]; // Sprites for bottom visuals
 
     [Header("Diagonal Overrides (used only if bitmask = 0)")]
-    public Sprite cornerTopLeftOverride;
-    public Sprite cornerTopRightOverride;
-    public Sprite cornerBottomLeftOverride;
-    public Sprite cornerBottomRightOverride;
+    public Sprite cornerTopLeftOverride;     // Fallback sprite if isolated tile has top-left neighbor
+    public Sprite cornerTopRightOverride;    // Fallback sprite if isolated tile has top-right neighbor
+    public Sprite cornerBottomLeftOverride;  // Fallback sprite if isolated tile has bottom-left neighbor
+    public Sprite cornerBottomRightOverride; // Fallback sprite if isolated tile has bottom-right neighbor
 
-    private SpriteRenderer sr;
+    private SpriteRenderer sr; // Cached reference to SpriteRenderer
 
     void Start()
     {
-        sr = GetComponent<SpriteRenderer>();
-        ApplyEdgeSprite();
+        sr = GetComponent<SpriteRenderer>(); // Cache the SpriteRenderer component
+        ApplyEdgeSprite(); // Set correct sprite when the game starts
     }
 
+    // Refresh visuals if something changes in the environment
     public void RefreshBitmaskVisual()
     {
-        Debug.Log($"[RoundedWallTile] Refreshing visuals at {transform.position}");
-
+        // Loop through child objects and remove visuals with specific prefixes
         foreach (Transform child in transform)
         {
             if (child.name.StartsWith("TopVisual_") ||
@@ -44,83 +45,78 @@ public class RoundedWallTile : MonoBehaviour
                 child.name.StartsWith("RightVisual_") ||
                 child.name.StartsWith("BottomVisual_"))
             {
-                Destroy(child.gameObject);
+                Destroy(child.gameObject); // Remove old decorations
             }
         }
 
-        ApplyEdgeSprite();
+        ApplyEdgeSprite(); // Reapply correct visuals
     }
 
+    // Assigns the correct sprite + creates visuals based on bitmask
     void ApplyEdgeSprite()
     {
-        int bitmask = CalculateBitmask();
-        Debug.Log($"[RoundedWallTile] Bitmask at {transform.position}: {bitmask}");
+        int bitmask = CalculateBitmask(); // Determine wall shape based on neighbors
 
-        if (bitmask == 5 || bitmask == 7 || bitmask == 10 || bitmask == 11 || bitmask == 13 || bitmask == 14 || bitmask == 15)
-        {
-            Debug.LogWarning($"[RoundedWallTile] Suspicious bitmask {bitmask} at {transform.position}");
-        }
-
+        // If tile has no direct neighbors, check diagonal overrides
         if (bitmask == 0)
         {
-            Sprite diagonal = GetDiagonalOverride();
+            Sprite diagonal = GetDiagonalOverride(); // Try to find a corner sprite
             if (diagonal != null)
             {
-                sr.sprite = diagonal;
-                Debug.Log("[RoundedWallTile] Using diagonal override sprite.");
-                return;
+                sr.sprite = diagonal; // Use diagonal sprite instead
+                return; // Exit early
             }
         }
-
-        if (bitmask >= 0 && bitmask < edgeSprites.Length && edgeSprites[bitmask] != null)
+        
+        if (bitmask >= 0 && bitmask < edgeSprites.Length && edgeSprites[bitmask] != null)// If valid bitmask, assign edge sprite
         {
             sr.sprite = edgeSprites[bitmask];
         }
-        else
-        {
-            Debug.LogWarning($"[RoundedWallTile] No edge sprite found for bitmask {bitmask} at {transform.position}");
-        }
 
+        // Spawn optional decorations based on bitmask rules
         if (ShouldShowTopVisual(bitmask)) CreateVisual(topVisualPrefab, topTreeSprites, bitmask, Vector3.up, "TopVisual_");
         if (ShouldShowLeftVisual(bitmask)) CreateVisual(leftVisualPrefab, leftSprites, bitmask, Vector3.left, "LeftVisual_");
         if (ShouldShowRightVisual(bitmask)) CreateVisual(rightVisualPrefab, rightSprites, bitmask, Vector3.right, "RightVisual_");
         if (ShouldShowBottomVisual(bitmask)) CreateVisual(bottomVisualPrefab, bottomSprites, bitmask, Vector3.down, "BottomVisual_");
     }
 
+    // Spawns a decoration prefab with the correct sprite
     void CreateVisual(GameObject prefab, Sprite[] spriteArray, int bitmask, Vector3 offset, string namePrefix)
     {
+        // Safety checks (nulls, array bounds, missing sprites)
         if (prefab == null || spriteArray == null || bitmask >= spriteArray.Length || spriteArray[bitmask] == null) return;
 
-        Vector3 spawnPos = transform.position + offset;
-        GameObject visual = Instantiate(prefab, spawnPos, Quaternion.identity);
-        visual.name = namePrefix + bitmask;
-        visual.transform.SetParent(transform);
+        Vector3 spawnPos = transform.position + offset; // Position offset relative to wall
+        GameObject visual = Instantiate(prefab, spawnPos, Quaternion.identity); // Spawn prefab
+        visual.name = namePrefix + bitmask; // Name for easy cleanup later
+        visual.transform.SetParent(transform); // Attach to wall tile
 
-        SpriteRenderer visSR = visual.GetComponent<SpriteRenderer>();
-        visSR.sprite = spriteArray[bitmask];
+        SpriteRenderer visSR = visual.GetComponent<SpriteRenderer>(); // Get renderer
+        visSR.sprite = spriteArray[bitmask]; // Assign sprite based on bitmask
     }
 
+    // Creates bitmask (binary representation of neighbors)
     int CalculateBitmask()
     {
         int mask = 0;
-        if (HasFloor(Vector2.up)) mask += 1;
-        if (HasFloor(Vector2.right)) mask += 2;
-        if (HasFloor(Vector2.down)) mask += 4;
-        if (HasFloor(Vector2.left)) mask += 8;
+        if (HasFloor(Vector2.up)) mask += 1;    // Up = bit 1
+        if (HasFloor(Vector2.right)) mask += 2; // Right = bit 2
+        if (HasFloor(Vector2.down)) mask += 4;  // Down = bit 4
+        if (HasFloor(Vector2.left)) mask += 8;  // Left = bit 8
         return mask;
     }
 
-    public int GetActualBitmask()
-    {
-        return CalculateBitmask();
-    }
+    // Public getter for bitmask (used by other scripts)
+    public int GetActualBitmask() => CalculateBitmask();
 
+    // Checks if a floor exists at a given direction
     bool HasFloor(Vector2 dir)
     {
-        Vector2 checkPos = (Vector2)transform.position + dir;
-        return Physics2D.OverlapBox(checkPos, Vector2.one * 0.8f, 0, floorMask);
+        Vector2 checkPos = (Vector2)transform.position + dir; // Position to check
+        return Physics2D.OverlapBox(checkPos, Vector2.one * 0.8f, 0, floorMask); // Overlap box detects colliders
     }
 
+    // Handles special diagonal override sprites (used if isolated tile)
     Sprite GetDiagonalOverride()
     {
         if (HasFloor(Vector2.up + Vector2.left) && cornerTopLeftOverride) return cornerTopLeftOverride;
@@ -130,12 +126,14 @@ public class RoundedWallTile : MonoBehaviour
         return null;
     }
 
+    // Rules for when to spawn top/left/right/bottom visuals
     bool ShouldShowTopVisual(int bitmask) => bitmask == 4 || bitmask == 14 || bitmask == 12 || bitmask == 6;
     bool ShouldShowLeftVisual(int bitmask) => bitmask == 2 || bitmask == 6 || bitmask == 10 || bitmask == 14;
     bool ShouldShowRightVisual(int bitmask) => bitmask == 8 || bitmask == 12 || bitmask == 10 || bitmask == 14;
     bool ShouldShowBottomVisual(int bitmask) => bitmask == 1 || bitmask == 5 || bitmask == 4 || bitmask == 7;
 
 #if UNITY_EDITOR
+    // Draws debug label in the Scene view (only in editor)
     void OnDrawGizmosSelected()
     {
         int bitmask = CalculateBitmask();

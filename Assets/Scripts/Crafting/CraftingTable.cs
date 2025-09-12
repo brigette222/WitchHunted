@@ -2,38 +2,35 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class CraftingTable : MonoBehaviour, IInteractable
+// location crafting - not currently in use
+public class CraftingTable : MonoBehaviour, IInteractable // A crafting station the player can interact with
 {
-    private CraftingWindow craftingWindow;
-    private Player player;
+    private CraftingWindow craftingWindow; // Reference to the crafting UI
+    private Player player; // Reference to the player for cursor control
 
     void Start()
     {
-        craftingWindow = FindObjectOfType<CraftingWindow>(true);
-        player = FindObjectOfType<Player>();
+        craftingWindow = FindObjectOfType<CraftingWindow>(true); // Find the crafting window (even if inactive)
+        player = FindObjectOfType<Player>(); // Find the player in the scene
     }
 
-    public string GetInteractPrompt()
-    {
-        return "Craft";
-    }
+    public string GetInteractPrompt() { return "Craft"; } // Text shown when player can interact
 
-    public void OnInteract()
+    public void OnInteract() // Called when the player interacts with the table
     {
-        craftingWindow.gameObject.SetActive(true);
-        player.ToggleCursor(true); // Ensure cursor becomes visible when crafting opens.
+        craftingWindow.gameObject.SetActive(true); // Open the crafting window
+        player.ToggleCursor(true); // Show the cursor so player can interact with UI
 
-        // Add listener to close the crafting UI and hide cursor when it's disabled
+        // Ensure canvas is enabled (redundant if SetActive is enough, but ensures UI shows properly)
         craftingWindow.gameObject.SetActive(true);
         craftingWindow.gameObject.GetComponent<Canvas>().enabled = true;
     }
 
     void Update()
     {
-        // If crafting window is closed, hide the cursor again
-        if (!craftingWindow.gameObject.activeSelf)
+        if (!craftingWindow.gameObject.activeSelf) // If the crafting window is closed
         {
-            player.ToggleCursor(false);
+            player.ToggleCursor(false); // Hide the cursor again
         }
     }
 }

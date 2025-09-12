@@ -1,40 +1,26 @@
 using UnityEngine;
-using UnityEditor;
-using UnityEngine.SceneManagement;
+using UnityEditor; // Needed for editor-only features
 
-public class MissingComponentScanner : MonoBehaviour
+
+public class MissingComponentScanner
 {
 #if UNITY_EDITOR
-    [MenuItem("Tools/Scan For Missing Components")]
+    [MenuItem("Tools/Scan For Missing Components")] // Adds a menu item in Unity: Tools - Scan For Missing Components
     static void ScanScene()
     {
-        int missingCount = 0;
-
-        foreach (GameObject obj in Resources.FindObjectsOfTypeAll<GameObject>())
+        foreach (GameObject obj in Resources.FindObjectsOfTypeAll<GameObject>()) // Scan all GameObjects
         {
-            if (obj.hideFlags == HideFlags.NotEditable || obj.hideFlags == HideFlags.HideAndDontSave)
-                continue;
+            if (obj.hideFlags == HideFlags.NotEditable || obj.hideFlags == HideFlags.HideAndDontSave) continue; // Skip hidden/internal
+            if (EditorUtility.IsPersistent(obj)) continue; // Skip prefabs in project view
 
-            // Skip prefabs in project window
-            if (EditorUtility.IsPersistent(obj))
-                continue;
-
-            Component[] components = obj.GetComponents<Component>();
-
+            Component[] components = obj.GetComponents<Component>(); // Get all attached components
             for (int i = 0; i < components.Length; i++)
             {
                 if (components[i] == null)
-                {
-                    Debug.LogWarning($"[Missing Component] GameObject '{obj.name}' in scene '{obj.scene.name}' has a missing component at index {i}", obj);
-                    missingCount++;
+                { // Missing component found  } // Placeholder: no debug output
                 }
             }
         }
-
-        if (missingCount == 0)
-            Debug.Log("[Scanner] No missing components found!");
-        else
-            Debug.Log($"[Scanner] Found {missingCount} missing components.");
-    }
 #endif
+    }
 }

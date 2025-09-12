@@ -1,192 +1,93 @@
-using System.Collections;
-using UnityEngine;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
+using System.Collections; // For IEnumerator and coroutines
+using UnityEngine; // Core Unity
+using UnityEngine.SceneManagement; // For scene loading
+using UnityEngine.UI; // For RawImage UI element
 
 public class TransitionAnimator : MonoBehaviour
 {
-    public Animator animator;
-    public RawImage transitionImage;
-    public GameObject combatUI;
+    public Animator animator; // Animator that controls transitions
+    public RawImage transitionImage; // UI overlay for fade effects
+    public GameObject combatUI; // Combat UI to toggle
+    public float circleDuration = 1f; // Circle transition time
+    public float slashDuration = 1f; // Slash transition time
 
-    [Header("Animation Durations")]
-    public float circleDuration = 1f;
-    public float slashDuration = 1f;
-
-    private static TransitionAnimator instance;
+    private static TransitionAnimator instance; // Singleton reference
 
     private void Awake()
     {
-        if (instance == null)
+        if (instance == null) // If no instance exists
         {
-            instance = this;
-            DontDestroyOnLoad(gameObject);
-            SceneManager.sceneLoaded += OnSceneLoaded;
+            instance = this; // Assign this as the instance
+            DontDestroyOnLoad(gameObject); // Persist across scenes
+            SceneManager.sceneLoaded += OnSceneLoaded; // Subscribe to scene load event
         }
-        else
-        {
-            Destroy(gameObject);
-        }
+        else Destroy(gameObject); // Destroy duplicates
     }
 
-    private void Start()
+    private void Start() { PlaySceneEntry(); } // Play entry animation at start
+
+    // ===== Scene Transition =====
+    public static void TriggerSceneTransition(string sceneName) // Start scene transition
     {
-        PlaySceneEntry();
+        if (instance != null) instance.StartCoroutine(instance.PlayAndLoad(sceneName)); // Use animator if available
+        else SceneManager.LoadScene(sceneName); // Otherwise load instantly
     }
 
-    // ============ LEVEL TRANSITION ============
-
-    public static void TriggerSceneTransition(string sceneName)
+    private IEnumerator PlayAndLoad(string sceneName) // Coroutine: fade out, load, then fade in
     {
-        if (instance != null)
-        {
-            instance.StartCoroutine(instance.PlayAndLoad(sceneName));
-        }
-        else
-        {
-            Debug.LogWarning("No TransitionAnimator found. Loading scene instantly.");
-            SceneManager.LoadScene(sceneName);
-        }
+        EnableImage(); // Show transition overlay
+        animator.Play("CircleToBlack"); // Play fade to black
+        yield return new WaitForSeconds(instance.circleDuration); // Wait fade duration
+        SceneManager.LoadScene(sceneName); // Load new scene
+        yield return null; // Wait one frame
+        Canvas.ForceUpdateCanvases(); // Force UI refresh
     }
 
-    private IEnumerator PlayAndLoad(string sceneName)
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode) // Called after scene loads
     {
-        EnableImage();
-        animator.Play("CircleToBlack");
-        yield return new WaitForSeconds(instance.circleDuration);
-
-        SceneManager.LoadScene(sceneName);
-
-        // Wait one frame to allow scene to load, then refresh canvas
-        yield return null;
-        Canvas.ForceUpdateCanvases();
-        Debug.Log("[TransitionAnimator] Canvas forced to update after scene load.");
+        Canvas.ForceUpdateCanvases(); // Ensure UI refresh
+        if (animator == null) return; // Skip if no animator
+        PlaySceneEntry(); // Play entry fade in
     }
 
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    private void PlaySceneEntry() // Entry transition
     {
-        Canvas.ForceUpdateCanvases(); // Backup: refresh canvas again
-        Debug.Log($"[TransitionAnimator] Scene loaded: {scene.name}");
-
-        if (animator == null)
-        {
-            Debug.LogWarning("[TransitionAnimator] No animator found. Skipping entry animation.");
-            return;
-        }
-
-        PlaySceneEntry();
+        if (animator == null) return; // Skip if missing
+        EnableImage(); // Show overlay
+        animator.Play("CircleFromBlack"); // Fade from black
+        StartCoroutine(DisableAfter(circleDuration)); // Disable overlay after animation
     }
 
-    private void PlaySceneEntry()
+    // ===== Combat Transition =====
+    public static void StartCombatTransition(System.Action onComplete) { if (instance != null) instance.StartCoroutine(instance.SlashTransitionIn(onComplete)); } // Combat IN
+    public static void EndCombatTransition(System.Action onComplete) { if (instance != null) instance.StartCoroutine(instance.CircleTransitionOut(onComplete)); } // Combat OUT
+
+    private IEnumerator SlashTransitionIn(System.Action onComplete) // Combat transition IN
     {
-        if (animator == null)
-        {
-            Debug.LogWarning("[TransitionAnimator] Animator is null in PlaySceneEntry(). Skipping.");
-            return;
-        }
-
-        EnableImage();
-        animator.Play("CircleFromBlack");
-        StartCoroutine(DisableAfter("CircleFromBlack", circleDuration));
+        EnableImage(); // Show overlay
+        animator.Play("SlashToBlack"); // Play slash fade
+        FindObjectOfType<MusicManager>()?.StartCombatMusic(); // Trigger combat music if found
+        yield return new WaitForSeconds(slashDuration); // Wait duration
+        if (combatUI) combatUI.SetActive(true); // Enable combat UI
+        animator.Play("SlashFromBlack"); // Play reverse slash fade
+        StartCoroutine(DisableImageAfterDelay(1f)); // Disable overlay later
+        onComplete?.Invoke(); // Call completion callback
     }
 
-    // ============ COMBAT TRANSITION ============
-
-    public static void StartCombatTransition(System.Action onComplete)
+    private IEnumerator CircleTransitionOut(System.Action onComplete) // Combat transition OUT
     {
-        if (instance != null)
-        {
-            instance.StartCoroutine(instance.SlashTransitionIn(onComplete));
-        }
+        EnableImage(); // Show overlay
+        animator.Play("CircleToBlack"); // Fade to black
+        yield return new WaitForSeconds(circleDuration); // Wait duration
+        if (combatUI) combatUI.SetActive(false); // Hide combat UI
+        animator.Play("CircleFromBlack"); // Fade back in
+        StartCoroutine(DisableImageAfterDelay(circleDuration + 0.1f)); // Disable overlay after
+        onComplete?.Invoke(); // Call completion callback
     }
 
-    public static void EndCombatTransition(System.Action onComplete)
-    {
-        if (instance != null)
-        {
-            instance.StartCoroutine(instance.CircleTransitionOut(onComplete));
-        }
-    }
-
-    private IEnumerator SlashTransitionIn(System.Action onComplete)
-    {
-        Debug.Log("[TransitionAnimator] Starting combat IN transition.");
-
-        EnableImage();
-        animator.Play("SlashToBlack");
-
-        MusicManager music = FindObjectOfType<MusicManager>();
-        if (music != null)
-        {
-            music.StartCombatMusic();
-            Debug.Log("[TransitionAnimator] Combat music triggered.");
-        }
-
-        yield return new WaitForSeconds(slashDuration);
-
-        if (combatUI != null)
-        {
-            combatUI.SetActive(true);
-            Debug.Log("[TransitionAnimator] Combat UI ENABLED.");
-        }
-
-        animator.Play("SlashFromBlack");
-        Debug.Log("[TransitionAnimator] SlashFromBlack started. RawImage will disable in 1 second.");
-        StartCoroutine(DisableImageAfterDelay(1f));
-
-        onComplete?.Invoke();
-    }
-
-    private IEnumerator CircleTransitionOut(System.Action onComplete)
-    {
-        Debug.Log("[TransitionAnimator] Starting combat OUT transition.");
-
-        EnableImage();
-        animator.Play("CircleToBlack");
-        yield return new WaitForSeconds(circleDuration);
-
-        if (combatUI != null)
-        {
-            combatUI.SetActive(false);
-            Debug.Log("[TransitionAnimator] Combat UI DISABLED.");
-        }
-
-        animator.Play("CircleFromBlack");
-        Debug.Log("[TransitionAnimator] Playing CircleFromBlack.");
-        StartCoroutine(DisableImageAfterDelay(circleDuration + 0.1f));
-
-        onComplete?.Invoke();
-    }
-
-    // ============ Helpers ============
-
-    private void EnableImage()
-    {
-        if (transitionImage != null)
-        {
-            transitionImage.enabled = true;
-            Debug.Log("[TransitionAnimator] RawImage ENABLED.");
-        }
-    }
-
-    private void DisableImage()
-    {
-        if (transitionImage != null)
-        {
-            transitionImage.enabled = false;
-            Debug.Log("[TransitionAnimator] RawImage DISABLED.");
-        }
-    }
-
-    private IEnumerator DisableImageAfterDelay(float seconds)
-    {
-        yield return new WaitForSeconds(seconds);
-        DisableImage();
-    }
-
-    private IEnumerator DisableAfter(string clipName, float duration)
-    {
-        yield return new WaitForSeconds(duration + 0.1f);
-        DisableImage();
-    }
+    // ===== Helpers =====
+    private void EnableImage() { if (transitionImage) transitionImage.enabled = true; } // Show overlay
+    private void DisableImage() { if (transitionImage) transitionImage.enabled = false; } // Hide overlay
+    private IEnumerator DisableImageAfterDelay(float s) { yield return new WaitForSeconds(s); DisableImage(); } // Hide after delay
+    private IEnumerator DisableAfter(float s) { yield return new WaitForSeconds(s + 0.1f); DisableImage(); } // Hide after animation
 }

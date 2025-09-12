@@ -4,4 +4,4 @@ version, with some values still needing adjustment and many elements pre-optimiz
 The game itself can be played by starting either the "MainMenu" or "DeepForest" scene. Both of these scenes can be located In the "scenes" folder under assets.
 
 
-In the coming weeks, I'll continue optimizing this game. I'll also be working on and uploading additional small 3D and VR games.
+In the coming weeks, I will also be working on and uploading additional small 3D and VR games.
