@@ -2,37 +2,21 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class ItemObject : MonoBehaviour, IInteractable
+public class ItemObject : MonoBehaviour, IInteractable // Represents a world item that can be picked up
 {
-    public ItemData item;
+    public ItemData item; // Reference to the item’s data (defines its properties)
 
-    public string GetInteractPrompt()
+    public string GetInteractPrompt() // Returns the interaction prompt shown to player
     {
-        return "Pickup " + (item != null ? item.displayName : "Unknown Item");
+        return "Pickup " + (item != null ? item.displayName : "Unknown Item"); // Show name if available
     }
 
-    public void OnInteract()
+    public void OnInteract() // Called when the player interacts with the item
     {
-        Debug.Log("OnInteract() called for: " + gameObject.name);
+        if (item == null) return; // Stop if item data is missing
+        if (Inventory.instance == null) return; // Stop if inventory system is missing
 
-        if (item == null)
-        {
-            Debug.LogError(" ERROR: ItemObject is missing ItemData! Cannot pick up.");
-            return;
-        }
-
-        if (Inventory.instance == null)
-        {
-            Debug.LogError(" ERROR: Inventory instance not found! Cannot add item.");
-            return;
-        }
-
-        Debug.Log(" Attempting to pick up: " + item.displayName);
-
-        Inventory.instance.AddItem(item);
-
-        Debug.Log(" Item successfully added to inventory: " + item.displayName);
-
-        Destroy(gameObject);
+        Inventory.instance.AddItem(item); // Add item to the player’s inventory
+        Destroy(gameObject); // Remove item from the scene after pickup
     }
 }

@@ -2,44 +2,40 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class EquipTool : Equip
+public class EquipTool : Equip // Inherits from Equip base class
 {
-    public float attackRate;
-    private bool attacking;
-    public float attackDistance;
+    public float attackRate; // Delay between attacks
+    private bool attacking; // Whether the tool is currently in an attack state
+    public float attackDistance; // Attack range (for hitting enemies/resources)
 
     [Header("Resource Gathering")]
-    public bool doesGatherResources;
+    public bool doesGatherResources; // Whether this tool can gather resources
 
     [Header("Combat")]
-    public bool doesDealDamage;
-    public int damage;
+    public bool doesDealDamage; // Whether this tool deals combat damage
+    public int damage; // Amount of damage dealt
 
-    // components
-    private Animator anim;
-    private Camera cam;
+    private Animator anim; // Reference to Animator
+    private Camera cam; // Reference to main camera
 
-    void Awake()
+    void Awake() // Called before Start
     {
-        // get our components
-        anim = GetComponent<Animator>();
-        cam = Camera.main;
+        anim = GetComponent<Animator>(); // Cache animator
+        cam = Camera.main; // Cache main camera
     }
 
-    // called when we press the attack input
-    public override void OnAttackInput()
+    public override void OnAttackInput() // Called when attack input is pressed
     {
-        if (!attacking)
+        if (!attacking) // Only attack if not already attacking
         {
-            attacking = true;
-            anim.SetTrigger("Attack");
-            Invoke("OnCanAttack", attackRate);
+            attacking = true; // Mark as attacking
+            anim.SetTrigger("Attack"); // Play attack animation
+            Invoke("OnCanAttack", attackRate); // Reset attack state after cooldown
         }
     }
 
-    // called when we're able to attack again
-    void OnCanAttack()
+    void OnCanAttack() // Resets attack availability
     {
-        attacking = false;
+        attacking = false; // Allow attacking again
     }
 }

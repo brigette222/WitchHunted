@@ -3,94 +3,51 @@ using UnityEngine.SceneManagement;
 
 public class PauseMenu : MonoBehaviour
 {
-    public GameObject pauseMenuUI;
+    public GameObject pauseMenuUI; // Reference to pause menu UI
 
-    private void Start()
+    private void Start() // Called once at initialization
     {
-        Debug.Log("[PauseMenu] Start() called");
-
-        if (pauseMenuUI == null)
-        {
-            pauseMenuUI = transform.Find("PauseCanvas")?.gameObject;
-
-            if (pauseMenuUI != null)
-                Debug.Log("[PauseMenu] Auto-assigned PauseCanvas.");
-            else
-                Debug.LogWarning("[PauseMenu] PauseCanvas not found.");
-        }
+        if (pauseMenuUI == null) // If UI not assigned
+            pauseMenuUI = transform.Find("PauseCanvas")?.gameObject; // Try to auto-find child PauseCanvas
     }
 
-    private void Update()
+    private void Update() // Called every frame
     {
-        if (PauseManager.Instance == null)
+        if (PauseManager.Instance == null) return; // Stop if PauseManager missing
+
+        if (Input.GetKeyDown(KeyCode.Escape)) // Check for Escape key press
         {
-            Debug.LogWarning("[PauseMenu] PauseManager not found.");
-            return;
+            if (PauseManager.Instance.CurrentPauseType == PauseType.Combat) return; // Block pause during combat
+            if (PauseManager.Instance.CurrentPauseType == PauseType.UI) Resume(); // If already paused, resume
+            else Pause(); // Otherwise, pause
         }
 
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            Debug.Log($"[PauseMenu] Escape pressed. Current PauseType: {PauseManager.Instance.CurrentPauseType}");
-
-            if (PauseManager.Instance.CurrentPauseType == PauseType.Combat)
-            {
-                Debug.Log("[PauseMenu] Blocked UI pause because Combat is active.");
-                return;
-            }
-
-            if (PauseManager.Instance.CurrentPauseType == PauseType.UI)
-                Resume();
-            else
-                Pause();
-        }
-
-        if (pauseMenuUI == null)
-        {
-            GameObject found = GameObject.Find("PauseCanvas");
-            if (found != null)
-            {
-                pauseMenuUI = found;
-                Debug.Log("[PauseMenu] PauseCanvas re-assigned at runtime.");
-            }
-        }
+        if (pauseMenuUI == null) // Try to recover UI if it was destroyed or unassigned
+            pauseMenuUI = GameObject.Find("PauseCanvas");
     }
 
-    public void Pause()
+    public void Pause() // Activates pause menu
     {
-        if (pauseMenuUI == null)
-        {
-            Debug.LogWarning("[PauseMenu] PauseCanvas is null. Cannot pause.");
-            return;
-        }
-
-        pauseMenuUI.SetActive(true);
-        PauseManager.Instance.Pause(PauseType.UI);
-        Debug.Log("[PauseMenu] PauseMenuUI activated.");
+        if (pauseMenuUI == null) return; // Stop if UI missing
+        pauseMenuUI.SetActive(true); // Show UI
+        PauseManager.Instance.Pause(PauseType.UI); // Set pause state
     }
 
-    public void Resume()
+    public void Resume() // Deactivates pause menu
     {
-        if (pauseMenuUI == null)
-        {
-            Debug.LogWarning("[PauseMenu] PauseCanvas is null. Cannot resume.");
-            return;
-        }
-
-        pauseMenuUI.SetActive(false);
-        PauseManager.Instance.Resume();
-        Debug.Log("[PauseMenu] PauseMenuUI deactivated.");
+        if (pauseMenuUI == null) return; // Stop if UI missing
+        pauseMenuUI.SetActive(false); // Hide UI
+        PauseManager.Instance.Resume(); // Resume game
     }
 
-    public void QuitToMenu()
+    public void QuitToMenu() // Loads main menu
     {
-        Debug.Log("[PauseMenu] Quit to menu called.");
-        PauseManager.Instance.Resume();
-        SceneManager.LoadScene("MainMenu");
+        PauseManager.Instance.Resume(); // Ensure game is resumed before leaving
+        SceneManager.LoadScene("MainMenu"); // Load main menu scene
     }
 
-    public void AssignPauseUI(GameObject ui)
+    public void AssignPauseUI(GameObject ui) // Dynamically assign UI reference
     {
-        pauseMenuUI = ui;
-        Debug.Log("[PauseMenu] Pause UI assigned dynamically: " + ui.name);
+        pauseMenuUI = ui; // Store reference
     }
 }

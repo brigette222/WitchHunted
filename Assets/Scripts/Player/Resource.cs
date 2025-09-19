@@ -4,29 +4,22 @@ using UnityEngine;
 
 public class Resource : MonoBehaviour
 {
-    public ItemData itemToGive;
-    public int quantityPerHit = 1;
-    public int capacity;
-    public GameObject hitParticle;
+    public ItemData itemToGive; // Item given when gathered
+    public int quantityPerHit = 1; // How many items per hit
+    public int capacity; // Total amount resource holds
+    public GameObject hitParticle; // Particle effect prefab when hit
 
-    // called when the player hits the resource with an axe
-    public void Gather(Vector3 hitPoint, Vector3 hitNormal)
+    public void Gather(Vector3 hitPoint, Vector3 hitNormal) // Called when player hits resource
     {
-        // give the player "quantityPerHit" of the resource
-        for (int i = 0; i < quantityPerHit; i++)
+        for (int i = 0; i < quantityPerHit; i++) // Loop for items per hit
         {
-            if (capacity <= 0)
-                break;
-
-            capacity -= 1;
-            Inventory.instance.AddItem(itemToGive);
+            if (capacity <= 0) break; // Stop if resource is empty
+            capacity -= 1; // Reduce resource capacity
+            Inventory.instance.AddItem(itemToGive); // Give item to player
         }
 
-        // create hit particle
-        Destroy(Instantiate(hitParticle, hitPoint, Quaternion.LookRotation(hitNormal, Vector3.up)), 1.0f);
+        Destroy(Instantiate(hitParticle, hitPoint, Quaternion.LookRotation(hitNormal, Vector3.up)), 1.0f); // Spawn particle and destroy it after 1s
 
-        // if we're empty, destroy the resource
-        if (capacity <= 0)
-            Destroy(gameObject);
+        if (capacity <= 0) Destroy(gameObject); // Destroy resource if depleted
     }
 }

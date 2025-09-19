@@ -3,88 +3,57 @@ using Yarn.Unity;
 
 public class TradeTransactionWatcher : MonoBehaviour
 {
-    public DialogueRunner runner;
-    public PlayerNeeds playerNeeds;
+    public DialogueRunner runner; // Reference to DialogueRunner handling Yarn dialogue
+    public PlayerNeeds playerNeeds; // Reference to PlayerNeeds for applying stat costs
 
-    // Assign your item data here in inspector
-    public ItemData daturaFlower;
-    public ItemData healingMixture;
-    public ItemData breadLoaf;
-    public ItemData smokableHerbs;
+    public ItemData daturaFlower; // Item given if trade involves datura
+    public ItemData healingMixture; // Item given if trade involves healing potion
+    public ItemData breadLoaf; // Item given if trade involves bread
+    public ItemData smokableHerbs; // Item given if trade involves herbs
 
-    private void Start()
+    private void Start() // Called once when the object is initialized
     {
-        if (runner == null) runner = FindObjectOfType<DialogueRunner>();
-        if (playerNeeds == null) playerNeeds = FindObjectOfType<PlayerNeeds>();
+        if (runner == null) runner = FindObjectOfType<DialogueRunner>(); // Auto-assign DialogueRunner if not set
+        if (playerNeeds == null) playerNeeds = FindObjectOfType<PlayerNeeds>(); // Auto-assign PlayerNeeds if not set
     }
 
-    void Update()
+    void Update() // Called every frame
     {
-        if (runner == null || runner.VariableStorage == null || playerNeeds == null)
-            return;
+        if (runner == null || runner.VariableStorage == null || playerNeeds == null) return; // Skip if setup is incomplete
 
-        // Check if the trade is completed
-        if (runner.VariableStorage.TryGetValue("$trade_complete", out object tradeCompletedObj) && (bool)tradeCompletedObj)
+        if (runner.VariableStorage.TryGetValue("$trade_complete", out object tradeCompletedObj) && (bool)tradeCompletedObj) // Check if trade is flagged complete
         {
-            // Process payment
-            if (runner.VariableStorage.TryGetValue("$trade_payment", out object paymentObj))
+            if (runner.VariableStorage.TryGetValue("$trade_payment", out object paymentObj)) // Check for trade payment value
             {
-                string payment = paymentObj as string;
-                if (!string.IsNullOrEmpty(payment))
-                {
-                    playerNeeds.ApplyTradeCost(payment);
-                    Debug.Log($"[TradeTransactionWatcher] Payment '{payment}' applied.");
-                }
+                string payment = paymentObj as string; // Cast object to string
+                if (!string.IsNullOrEmpty(payment)) playerNeeds.ApplyTradeCost(payment); // Apply payment cost if valid
             }
 
-            // Process item
-            if (runner.VariableStorage.TryGetValue("$trade_item", out object itemObj))
+            if (runner.VariableStorage.TryGetValue("$trade_item", out object itemObj)) // Check for trade item value
             {
-                string tradeItem = itemObj as string;
-                if (!string.IsNullOrEmpty(tradeItem))
-                {
-                    GiveItem(tradeItem);
-                }
+                string tradeItem = itemObj as string; // Cast object to string
+                if (!string.IsNullOrEmpty(tradeItem)) GiveItem(tradeItem); // Give item if valid
             }
 
-            // Reset variables after trade
-            runner.VariableStorage.SetValue("$trade_complete", false);
-            runner.VariableStorage.SetValue("$trade_payment", "");
-            runner.VariableStorage.SetValue("$trade_item", "");
+            runner.VariableStorage.SetValue("$trade_complete", false); // Reset trade complete flag
+            runner.VariableStorage.SetValue("$trade_payment", ""); // Reset trade payment
+            runner.VariableStorage.SetValue("$trade_item", ""); // Reset trade item
         }
     }
 
-    void GiveItem(string itemKey)
+    void GiveItem(string itemKey) // Handles giving item to player based on key
     {
-        ItemData itemToGive = null;
+        ItemData itemToGive = null; // Placeholder for chosen item
 
-        switch (itemKey)
+        switch (itemKey) // Match the item key to a defined item
         {
-            case "datura":
-                itemToGive = daturaFlower;
-                break;
-            case "healing":
-                itemToGive = healingMixture;
-                break;
-            case "bread":
-                itemToGive = breadLoaf;
-                break;
-            case "herbs":
-                itemToGive = smokableHerbs;
-                break;
-            default:
-                Debug.LogWarning($"[TradeTransactionWatcher] Unknown trade item '{itemKey}'");
-                return;
+            case "datura": itemToGive = daturaFlower; break; // Select datura flower
+            case "healing": itemToGive = healingMixture; break; // Select healing mixture
+            case "bread": itemToGive = breadLoaf; break; // Select bread loaf
+            case "herbs": itemToGive = smokableHerbs; break; // Select smokable herbs
+            default: return; // Unknown item key stop
         }
 
-        if (itemToGive != null && Inventory.instance != null)
-        {
-            Inventory.instance.AddItem(itemToGive);
-            Debug.Log($"[TradeTransactionWatcher] Player received item: {itemToGive.displayName}");
-        }
-        else
-        {
-            Debug.LogError("[TradeTransactionWatcher] ItemData or Inventory missing!");
-        }
+        if (itemToGive != null && Inventory.instance != null) Inventory.instance.AddItem(itemToGive); // Add item to inventory if valid
     }
 }

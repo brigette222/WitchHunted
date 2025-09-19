@@ -7,74 +7,54 @@ using UnityEngine.SceneManagement;
 
 public class PlayerNeeds : MonoBehaviour, IDamagable
 {
-    public static PlayerNeeds instance; // ? Instance for SaveManager
+    public static PlayerNeeds instance; // Singleton reference
 
-    public Need health;
-    public Need magik;
-    public Need hunger;
-    public Need stamina;
+    public Need health; // Player health stat
+    public Need magik; // Player magic stat
+    public Need hunger; // Player hunger stat
+    public Need stamina; // Player stamina stat
 
-    public float noHungerHealthDecay;
-    public float noThirstHealthDecay; // Kept for future, not used now
+    public float noHungerHealthDecay; // Health drain when hunger is empty
+    public float noThirstHealthDecay; // Reserved (unused)
 
-    [Range(0f, 1f)] public float evasionRate = 0.1f;
+    [Range(0f, 1f)] public float evasionRate = 0.1f; // Chance to evade damage
 
-    public UnityEvent onTakeDamage;
+    public UnityEvent onTakeDamage; // Event triggered when taking damage
 
-    private Character combatPlayer;
+    private Character combatPlayer; // Reference to combat system representation
 
-    void Awake()
+    void Awake() => instance = this; // Assign singleton
+
+    void Start() // Initialize needs
     {
-        instance = this;
+        health.uiBar = GameObject.Find("Health Value")?.GetComponent<Image>(); // Bind UI health bar
+        hunger.uiBar = GameObject.Find("Hunger Value")?.GetComponent<Image>(); // Bind UI hunger bar
+        magik.uiBar = GameObject.Find("Magik Value")?.GetComponent<Image>(); // Bind UI magic bar
+        stamina.uiBar = GameObject.Find("Stamina Value")?.GetComponent<Image>(); // Bind UI stamina bar
+
+        health.curValue = health.startValue; // Reset health
+        hunger.curValue = hunger.startValue; // Reset hunger
+        magik.curValue = magik.startValue; // Reset magik
+        stamina.curValue = stamina.startValue; // Reset stamina
+
+        UpdateUI(); // Refresh UI
     }
 
-    void Start()
+    void Update() // Runs every frame
     {
-        health.uiBar = GameObject.Find("Health Value")?.GetComponent<Image>();
-        hunger.uiBar = GameObject.Find("Hunger Value")?.GetComponent<Image>();
-        magik.uiBar = GameObject.Find("Magik Value")?.GetComponent<Image>();
-        stamina.uiBar = GameObject.Find("Stamina Value")?.GetComponent<Image>();
+        if (PauseManager.Instance != null && PauseManager.Instance.IsAnyPaused()) return; // Skip while paused
 
-        health.curValue = health.startValue;
-        hunger.curValue = hunger.startValue;
-        magik.curValue = magik.startValue;
-        stamina.curValue = stamina.startValue;
+        hunger.Subtract(hunger.decayRate * Time.deltaTime); // Drain hunger
+        magik.Subtract(magik.decayRate * Time.deltaTime); // Drain magik
+        stamina.Add(stamina.regenRate * Time.deltaTime); // Regenerate stamina
 
-        UpdateUI();
+        if (hunger.curValue == 0f) health.Subtract(noHungerHealthDecay * Time.deltaTime); // Health decay if starving
+        if (health.curValue == 0f) Die(); // Trigger death if health empty
+
+        UpdateUI(); // Refresh UI
     }
 
-    void Update()
-    {
-        // ? Pause-aware: stops draining stats if game is paused
-        if (PauseManager.Instance != null && PauseManager.Instance.IsAnyPaused())
-        {
-            return;
-        }
-
-        // ? Stat drain/gain
-        hunger.Subtract(hunger.decayRate * Time.deltaTime);
-        magik.Subtract(magik.decayRate * Time.deltaTime);
-        stamina.Add(stamina.regenRate * Time.deltaTime);
-
-        // ? Health penalty only from hunger
-        if (hunger.curValue == 0f)
-        {
-            health.Subtract(noHungerHealthDecay * Time.deltaTime);
-        }
-
-        // ? Magik no longer affects health
-        // if (magik.curValue == 0f)
-        //     health.Subtract(noThirstHealthDecay * Time.deltaTime);
-
-        if (health.curValue == 0f)
-        {
-            Die();
-        }
-
-        UpdateUI();
-    }
-
-    public void ApplyTradeCost(string paymentType)
+    public void ApplyTradeCost(string paymentType) // Handles stat trade costs
     {
         switch (paymentType.ToLower())
         {
@@ -83,11 +63,10 @@ public class PlayerNeeds : MonoBehaviour, IDamagable
             case "rations": hunger.Subtract(25f); break;
             case "sweat": stamina.Subtract(30f); break;
         }
-
         UpdateUI();
     }
 
-    public void UpdateUI()
+    public void UpdateUI() // Updates UI bars
     {
         if (health.uiBar != null) health.uiBar.fillAmount = Mathf.Clamp01(health.GetPercentage());
         if (hunger.uiBar != null) hunger.uiBar.fillAmount = Mathf.Clamp01(hunger.GetPercentage());
@@ -95,79 +74,65 @@ public class PlayerNeeds : MonoBehaviour, IDamagable
         if (stamina.uiBar != null) stamina.uiBar.fillAmount = Mathf.Clamp01(stamina.GetPercentage());
     }
 
-    public void Heal(float amount) { health.Add(amount); }
-    public void Eat(float amount) { hunger.Add(amount); }
-    public void Drink(float amount) { magik.Add(amount); }
-    public void Sleep(float amount) { stamina.Subtract(amount); }
+    public void Heal(float amount) => health.Add(amount); // Heal health
+    public void Eat(float amount) => hunger.Add(amount); // Restore hunger
+    public void Drink(float amount) => magik.Add(amount); // Restore magik
+    public void Sleep(float amount) => stamina.Subtract(amount); // Reduce stamina (work cost)
 
-    public void TakePhysicalDamage(int amount)
+    public void TakePhysicalDamage(int amount) // Handles incoming physical damage
     {
-        float roll = Random.Range(0f, 1f);
-        if (roll < evasionRate)
-            return;
-
-        health.Subtract(amount);
-        onTakeDamage?.Invoke();
+        float roll = Random.Range(0f, 1f); // Roll for evasion
+        if (roll < evasionRate) return; // Evaded
+        health.Subtract(amount); // Apply damage
+        onTakeDamage?.Invoke(); // Fire event
     }
 
-    public void Die()
-    {
-        Debug.Log("[PlayerNeeds] Player has died. Loading GameOver scene...");
-        SceneManager.LoadScene("GameOver");
-    }
+    public void Die() => SceneManager.LoadScene("GameOver"); // Load game over scene
 
-    public void SyncHealthToCombat(Character combatCharacter)
+    public void SyncHealthToCombat(Character combatCharacter) // Sync stats into combat
     {
         combatPlayer = combatCharacter;
-        combatPlayer.CurHp = (int)health.curValue;
-        combatPlayer.MaxHp = (int)health.maxValue;
-        combatPlayer.EvasionRate = evasionRate;
+        combatPlayer.CurHp = (int)health.curValue; // Set HP
+        combatPlayer.MaxHp = (int)health.maxValue; // Set MaxHP
+        combatPlayer.EvasionRate = evasionRate; // Sync evasion
     }
 
-    public void SyncHealthFromCombat()
+    public void SyncHealthFromCombat() // Sync stats back from combat
     {
         if (combatPlayer != null)
         {
-            health.curValue = combatPlayer.CurHp;
+            health.curValue = combatPlayer.CurHp; // Restore HP
             UpdateUI();
         }
     }
 
-    public void SpendMagik(float amount)
+    public void SpendMagik(float amount) // Spend magic points
     {
-        if (magik.curValue >= amount)
-        {
-            magik.curValue -= amount;
-            UpdateUI();
-        }
+        if (magik.curValue >= amount) { magik.curValue -= amount; UpdateUI(); }
     }
 
-    public void SpendStamina(float amount)
+    public void SpendStamina(float amount) // Spend stamina points
     {
-        if (stamina.curValue >= amount)
-        {
-            stamina.curValue -= amount;
-            UpdateUI();
-        }
+        if (stamina.curValue >= amount) { stamina.curValue -= amount; UpdateUI(); }
     }
 }
 
 [System.Serializable]
-public class Need
+public class Need // Represents a stat
 {
-    [HideInInspector] public float curValue;
-    public float maxValue;
-    public float startValue;
-    public float regenRate;
-    public float decayRate;
-    public Image uiBar;
+    [HideInInspector] public float curValue; // Current value
+    public float maxValue; // Maximum value
+    public float startValue; // Starting value
+    public float regenRate; // Rate of regeneration
+    public float decayRate; // Rate of decay
+    public Image uiBar; // UI representation
 
-    public void Add(float amount) { curValue = Mathf.Min(curValue + amount, maxValue); }
-    public void Subtract(float amount) { curValue = Mathf.Max(curValue - amount, 0f); }
-    public float GetPercentage() { return curValue / maxValue; }
+    public void Add(float amount) => curValue = Mathf.Min(curValue + amount, maxValue); // Increase stat
+    public void Subtract(float amount) => curValue = Mathf.Max(curValue - amount, 0f); // Decrease stat
+    public float GetPercentage() => curValue / maxValue; // Normalized value
 }
 
-public interface IDamagable
+public interface IDamagable // Interface for damageable entities
 {
-    void TakePhysicalDamage(int damageAmount);
+    void TakePhysicalDamage(int damageAmount); // Called when taking damage
 }

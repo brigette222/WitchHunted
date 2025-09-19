@@ -1,32 +1,29 @@
 using UnityEngine;
 using Yarn.Unity;
 
+
 public class KnightSalveRemover : MonoBehaviour
 {
-    public ItemData healingSalve;
+    public ItemData healingSalve; // Reference to the healing salve item
 
-    private DialogueRunner runner;
+    private DialogueRunner runner; // Reference to Yarn's DialogueRunner
 
-    void Start()
+    void Start() // Called once when the object is initialized
     {
-        runner = FindObjectOfType<DialogueRunner>();
+        runner = FindObjectOfType<DialogueRunner>(); // Auto-assign DialogueRunner in the scene
     }
 
-    void Update()
+    void Update() // Called every frame
     {
-        if (runner != null &&
-            runner.VariableStorage != null &&
-            runner.VariableStorage.TryGetValue("$remove_healing_salve", out bool shouldRemove) &&
-            shouldRemove)
+        if (runner != null && // Ensure DialogueRunner exists
+            runner.VariableStorage != null && // Ensure Yarn variable storage exists
+            runner.VariableStorage.TryGetValue("$remove_healing_salve", out bool shouldRemove) && // Check if variable exists
+            shouldRemove) // Continue only if the flag is true
         {
-            if (Inventory.instance.HasItems(healingSalve, 1))
-            {
-                Inventory.instance.RemoveItem(healingSalve);
-                Debug.Log("[KnightSalveRemover] Removed healing salve.");
-            }
+            if (Inventory.instance.HasItems(healingSalve, 1)) // If player has at least one healing salve
+                Inventory.instance.RemoveItem(healingSalve); // Remove it from inventory
 
-            // Reset the variable to prevent multiple removals
-            runner.VariableStorage.SetValue("$remove_healing_salve", false);
+            runner.VariableStorage.SetValue("$remove_healing_salve", false); // Reset flag to prevent repeated removal
         }
     }
 }

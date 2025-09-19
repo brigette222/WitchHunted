@@ -2,24 +2,15 @@ using UnityEngine;
 
 public class PauseUIBinder : MonoBehaviour
 {
-    private void Start()
+    private void Start() // Called once when object is initialized
     {
-        // Wait a frame to ensure PauseMenu exists
-        StartCoroutine(AssignToPauseMenu());
+        StartCoroutine(AssignToPauseMenu()); // Start coroutine to assign UI
     }
 
-    System.Collections.IEnumerator AssignToPauseMenu()
+    System.Collections.IEnumerator AssignToPauseMenu() // Coroutine to delay assignment by 1 frame
     {
-        yield return null;
-
-        PauseMenu pauseMenu = FindObjectOfType<PauseMenu>();
-        if (pauseMenu != null)
-        {
-            pauseMenu.AssignPauseUI(gameObject);
-        }
-        else
-        {
-            Debug.LogWarning("[PauseUIBinder] Couldn't find PauseMenu to assign to.");
-        }
+        yield return null; // Wait a frame to ensure PauseMenu exists
+        PauseMenu pauseMenu = FindObjectOfType<PauseMenu>(); // Find PauseMenu in scene
+        if (pauseMenu != null) pauseMenu.AssignPauseUI(gameObject); // Assign this UI to PauseMenu
     }
 }

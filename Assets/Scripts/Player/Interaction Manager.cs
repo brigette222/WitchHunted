@@ -6,81 +6,70 @@ using UnityEngine.InputSystem;
 
 public class InteractionManager : MonoBehaviour
 {
-    public float checkRate = 0.05f;
-    private float lastCheckTime;
-    public float maxCheckDistance = 0.8f;
-    public LayerMask layerMask;
+    public float checkRate = 0.05f; // How often we check for interactables
+    private float lastCheckTime; // Time of last check
+    public float maxCheckDistance = 0.8f; // Detection radius for interactables
+    public LayerMask layerMask; // Layers that count as interactables
 
-    private GameObject curInteractGameObject;
-    private IInteractable curInteractable;
+    private GameObject curInteractGameObject; // Current detected interactable object
+    private IInteractable curInteractable; // Current interactable interface
 
-    public TextMeshProUGUI promptText;
+    public TextMeshProUGUI promptText; // UI text for interaction prompt
 
-    void Start()
+    void Start() // Called once at initialization
     {
-        promptText.gameObject.SetActive(false);
+        promptText.gameObject.SetActive(false); // Hide prompt at start
     }
 
-    void Update()
+    void Update() // Called every frame
     {
-        if (Time.time - lastCheckTime > checkRate)
+        if (Time.time - lastCheckTime > checkRate) // Run detection only at intervals
         {
-            lastCheckTime = Time.time;
+            lastCheckTime = Time.time; // Update last check timestamp
+            Collider2D hit = Physics2D.OverlapCircle(transform.position, maxCheckDistance, layerMask); // Detect interactable
 
-            Collider2D hit = Physics2D.OverlapCircle(transform.position, maxCheckDistance, layerMask);
-
-            if (hit != null)
+            if (hit != null) // If something is detected
             {
-                if (hit.gameObject != curInteractGameObject)
+                if (hit.gameObject != curInteractGameObject) // If it's a new target
                 {
-                    curInteractGameObject = hit.gameObject;
-                    curInteractable = hit.GetComponent<IInteractable>();
-
-                    if (curInteractable != null)
-                    {
-                        SetPromptText();
-                    }
-                    else
-                    {
-                        ClearPrompt();
-                    }
+                    curInteractGameObject = hit.gameObject; // Cache new object
+                    curInteractable = hit.GetComponent<IInteractable>(); // Get interactable interface
+                    if (curInteractable != null) SetPromptText(); // Show prompt
+                    else ClearPrompt(); // Hide if not interactable
                 }
             }
-            else
-            {
-                ClearPrompt();
-            }
+            else ClearPrompt(); // Nothing detected = clear prompt
         }
 
-        if (Input.GetKeyDown(KeyCode.E))
+        if (Input.GetKeyDown(KeyCode.E)) // If interact key pressed
         {
-            if (curInteractable != null)
+            if (curInteractable != null) // If valid interactable
             {
-                curInteractable.OnInteract();
-                ClearPrompt();
+                curInteractable.OnInteract(); // Trigger interaction
+                ClearPrompt(); // Clear prompt after interacting
             }
         }
     }
 
-    void SetPromptText()
+    void SetPromptText() // Displays prompt text
     {
         if (curInteractable != null)
         {
-            promptText.gameObject.SetActive(true);
-            promptText.text = "[E] " + curInteractable.GetInteractPrompt();
+            promptText.gameObject.SetActive(true); // Enable prompt UI
+            promptText.text = "[E] " + curInteractable.GetInteractPrompt(); // Show interact message
         }
     }
 
-    void ClearPrompt()
+    void ClearPrompt() // Clears prompt and cached interactable
     {
-        curInteractGameObject = null;
-        curInteractable = null;
-        promptText.gameObject.SetActive(false);
+        curInteractGameObject = null; // Reset current object
+        curInteractable = null; // Reset current interactable
+        promptText.gameObject.SetActive(false); // Hide prompt UI
     }
 }
 
-public interface IInteractable
+public interface IInteractable // Interface for all interactable objects
 {
-    string GetInteractPrompt();
-    void OnInteract();
+    string GetInteractPrompt(); // Returns interaction prompt
+    void OnInteract(); // Executes interaction logic
 }

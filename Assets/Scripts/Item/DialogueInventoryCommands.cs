@@ -4,87 +4,41 @@ using Yarn.Unity;
 public class DialogueInventoryCommands : MonoBehaviour
 {
     [Header("Assign your ItemData assets")]
-    public ItemData daturaFlower;
-    public ItemData healingMixture;
-    public ItemData breadLoaf;
-    public ItemData smokableHerbs;
+    public ItemData daturaFlower; // Item data for datura
+    public ItemData healingMixture; // Item data for healing mixture
+    public ItemData breadLoaf; // Item data for bread
+    public ItemData smokableHerbs; // Item data for herbs
 
-    private DialogueRunner runner;
+    private DialogueRunner runner; // Reference to DialogueRunner
 
-    void Awake()
+    void Awake() // Called once when object is initialized
     {
-        runner = FindObjectOfType<DialogueRunner>();
-        if (runner == null)
-        {
-            Debug.LogError("? DialogueRunner not found in the scene.");
-        }
+        runner = FindObjectOfType<DialogueRunner>(); // Auto-assign DialogueRunner
     }
 
-    [YarnCommand("give")]
-    public void GiveItemFromTrade()
+    [YarnCommand("give")] // Makes this method callable from Yarn dialogue
+    public void GiveItemFromTrade() // Handles giving an item to inventory
     {
-        Debug.Log("?? [GIVE] Dialogue command triggered");
+        if (runner == null || runner.VariableStorage == null) return; // Stop if DialogueRunner or storage is missing
+        if (!runner.VariableStorage.TryGetValue("$trade_item", out object valueObj)) return; // Stop if trade item not found
 
-        if (runner == null || runner.VariableStorage == null)
+        string selectedItem = valueObj as string; // Cast stored value to string
+        if (string.IsNullOrEmpty(selectedItem)) return; // Stop if item string is empty
+
+        ItemData itemToGive = null; // Placeholder for resolved item
+
+        switch (selectedItem) // Match trade key to assigned ItemData
         {
-            Debug.LogError("? DialogueRunner or VariableStorage is null.");
-            return;
+            case "datura": itemToGive = daturaFlower; break;
+            case "healing": itemToGive = healingMixture; break;
+            case "bread": itemToGive = breadLoaf; break;
+            case "herbs": itemToGive = smokableHerbs; break;
+            default: return; 
         }
 
-        if (!runner.VariableStorage.TryGetValue("$trade_item", out object valueObj))
-        {
-            Debug.LogError("? Could not retrieve $trade_item from VariableStorage.");
-            return;
-        }
+        if (itemToGive == null || Inventory.instance == null) return; // Stop if item or inventory missing
 
-        string selectedItem = valueObj as string;
-
-        Debug.Log($"?? Retrieved $trade_item: {selectedItem}");
-
-        if (string.IsNullOrEmpty(selectedItem))
-        {
-            Debug.LogWarning("?? No trade item selected (empty string).");
-            return;
-        }
-
-        ItemData itemToGive = null;
-
-        switch (selectedItem)
-        {
-            case "datura":
-                itemToGive = daturaFlower;
-                break;
-            case "healing":
-                itemToGive = healingMixture;
-                break;
-            case "bread":
-                itemToGive = breadLoaf;
-                break;
-            case "herbs":
-                itemToGive = smokableHerbs;
-                break;
-            default:
-                Debug.LogError("? Unknown trade item: " + selectedItem);
-                return;
-        }
-
-        if (itemToGive == null)
-        {
-            Debug.LogError($"? No ItemData assigned for trade item '{selectedItem}'. Check the Unity inspector!");
-            return;
-        }
-
-        if (Inventory.instance == null)
-        {
-            Debug.LogError("? Inventory.instance is null! Make sure the Player GameObject has the Inventory component.");
-            return;
-        }
-
-        Debug.Log($"? Giving item to inventory: {itemToGive.displayName}");
-        Inventory.instance.AddItem(itemToGive);
-
-        runner.VariableStorage.SetValue("$trade_item", "");
-
-        Debug.Log("? Trade item given and $trade_item reset.");
+        Inventory.instance.AddItem(itemToGive); // Add item to player inventory
+        runner.VariableStorage.SetValue("$trade_item", ""); // Reset trade item after giving
     }
 }

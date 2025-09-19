@@ -5,77 +5,32 @@ using Yarn.Unity;
 public class RitualNodeSceneLoader : MonoBehaviour
 {
     [Header("Yarn Settings")]
-    [SerializeField] private DialogueRunner runner; // If not assigned, auto-find
-    public string targetNode = "Ritual_Start"; // Node to listen for
+    [SerializeField] private DialogueRunner runner; // DialogueRunner reference (auto-assigned if null)
+    public string targetNode = "Ritual_Start"; // Yarn node name to listen for
 
     [Header("Scene Settings")]
-    public string sceneToLoad = "GameOver"; // Scene to load (TEMP)
+    public string sceneToLoad = "GameOver"; // Scene to load when ritual completes
+    public float delayBeforeLoad = 1.5f; // Delay before loading scene
 
-    public float delayBeforeLoad = 1.5f;
-
-    private void Awake()
+    private void Awake() // Called when object is initialized
     {
-        Debug.Log("[RitualNodeSceneLoader] Awake called.");
-
-        if (runner == null)
-        {
-            runner = FindObjectOfType<DialogueRunner>();
-            if (runner != null)
-            {
-                Debug.Log("[RitualNodeSceneLoader] Auto-assigned DialogueRunner.");
-            }
-            else
-            {
-                Debug.LogError("[RitualNodeSceneLoader] ERROR: DialogueRunner not found in scene!");
-            }
-        }
-
-        if (runner != null)
-        {
-            runner.onNodeComplete.AddListener(OnNodeComplete);
-            Debug.Log("[RitualNodeSceneLoader] Subscribed to runner.onNodeComplete.");
-        }
+        if (runner == null) runner = FindObjectOfType<DialogueRunner>(); // Auto-find DialogueRunner if not set
+        if (runner != null) runner.onNodeComplete.AddListener(OnNodeComplete); // Subscribe to node completion event
     }
 
-    private void OnDestroy()
+    private void OnDestroy() // Called when object is destroyed
     {
-        if (runner != null)
-        {
-            runner.onNodeComplete.RemoveListener(OnNodeComplete);
-            Debug.Log("[RitualNodeSceneLoader] Unsubscribed from runner.onNodeComplete.");
-        }
+        if (runner != null) runner.onNodeComplete.RemoveListener(OnNodeComplete); // Unsubscribe from node completion
     }
 
-    private void OnNodeComplete(string completedNode)
+    private void OnNodeComplete(string completedNode) // Called when Yarn finishes a node
     {
-        Debug.Log($"[RitualNodeSceneLoader] Node completed: {completedNode}");
-
-        if (completedNode == targetNode)
-        {
-            Debug.Log($"[RitualNodeSceneLoader] Target node '{targetNode}' matched. Starting DelayedLoad.");
-            StartCoroutine(DelayedLoad());
-        }
-        else
-        {
-            Debug.Log($"[RitualNodeSceneLoader] Node '{completedNode}' completed but did not match target '{targetNode}'. No action taken.");
-        }
+        if (completedNode == targetNode) StartCoroutine(DelayedLoad()); // If target node matches, start scene load
     }
 
-    private System.Collections.IEnumerator DelayedLoad()
+    private System.Collections.IEnumerator DelayedLoad() // Coroutine for scene load delay
     {
-        Debug.Log($"[RitualNodeSceneLoader] DelayedLoad started. Waiting {delayBeforeLoad} seconds...");
-        yield return new WaitForSeconds(delayBeforeLoad);
-
-        Debug.Log($"[RitualNodeSceneLoader] Attempting to load scene: {sceneToLoad}");
-
-        if (Application.CanStreamedLevelBeLoaded(sceneToLoad))
-        {
-            Debug.Log($"[RitualNodeSceneLoader] Scene '{sceneToLoad}' found. Loading now...");
-            SceneManager.LoadScene(sceneToLoad);
-        }
-        else
-        {
-            Debug.LogError($"[RitualNodeSceneLoader] ERROR: Scene '{sceneToLoad}' cannot be loaded! Check Build Settings.");
-        }
+        yield return new WaitForSeconds(delayBeforeLoad); // Wait for set time before loading
+        if (Application.CanStreamedLevelBeLoaded(sceneToLoad)) SceneManager.LoadScene(sceneToLoad); // Load scene if valid
     }
 }

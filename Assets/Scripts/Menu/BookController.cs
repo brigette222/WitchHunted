@@ -5,189 +5,141 @@ using System.Collections;
 public class BookUIController : MonoBehaviour
 {
     [Header("Book Setup")]
-    public GameObject bookUI;
-    public Animator bookAnimator;
-    public Animator contentAnimator;
+    public GameObject bookUI; // Root UI object for the book
+    public Animator bookAnimator; // Animator controlling book animations
+    public Animator contentAnimator; // Animator controlling page content transitions
 
     [Header("Tab Pages")]
-    public GameObject[] pages;
-    public GameObject tabsContainer;
+    public GameObject[] pages; // Array of book pages
+    public GameObject tabsContainer; // Container holding tab buttons
 
-    public static bool BookIsOpen { get; private set; }
+    public static bool BookIsOpen { get; private set; } // Tracks whether the book is open
 
-    private bool isFirstOpen = true;
-    private bool bookOpen = false;
-    private int currentPage = 0;
-    private int pendingPageIndex = 0;
+    private bool isFirstOpen = true; // Tracks whether this is the first time opening
+    private bool bookOpen = false; // Tracks current open/closed state
+    private int currentPage = 0; // Currently displayed page
+    private int pendingPageIndex = 0; // Next page to display after animations
 
-    private float bookOpenDelay = 0.5f;
-    private float tabAppearDelay = 0.4f;
-    private float tabDisappearDelay = 0.4f;
-    private float bookCloseDelay = 0.5f;
-    private float pageFlipDelay = 0.4f;
-    private float contentTransitionDelay = 0.92f;
+    private float bookOpenDelay = 0.5f; // Delay before opening finishes
+    private float tabAppearDelay = 0.4f; // Delay for tab appearance
+    private float tabDisappearDelay = 0.4f; // Delay for tab disappearance
+    private float bookCloseDelay = 0.5f; // Delay before closing finishes
+    private float pageFlipDelay = 0.4f; // Delay for page flip animation
+    private float contentTransitionDelay = 0.92f; // Delay for content fade animations
 
-    void Update()
+    void Update() // Called every frame
     {
-        if (Keyboard.current.fKey.wasPressedThisFrame)
+        if (Keyboard.current.fKey.wasPressedThisFrame) // Check if F key pressed
         {
-            Debug.Log($"[BookUI] F key pressed. Book is currently {(bookOpen ? "OPEN" : "CLOSED")}");
-            if (bookOpen)
-                CloseBook();
-            else
-                OpenBook(0);
+            if (bookOpen) CloseBook(); // If book open, close it
+            else OpenBook(0); // Otherwise open to first page
         }
     }
 
-    public void OpenBook(int pageIndex)
+    public void OpenBook(int pageIndex) // Opens the book at a specific page
     {
-        // ? Reset to page 0 if something passed a bad index
-        if (pageIndex < 0 || pageIndex >= pages.Length)
-            pageIndex = 0;
+        if (pageIndex < 0 || pageIndex >= pages.Length) pageIndex = 0; // Clamp page index
+        currentPage = 0; // Reset page
+        pendingPageIndex = pageIndex; // Store requested page
 
-        currentPage = 0;
-        pendingPageIndex = pageIndex;
-
-        if (PauseManager.Instance != null && PauseManager.Instance.CurrentPauseType == PauseType.None)
-        {
+        if (PauseManager.Instance != null && PauseManager.Instance.CurrentPauseType == PauseType.None) // Pause gameplay
             PauseManager.Instance.Pause(PauseType.Combat);
-            Debug.Log("[BookUI] Game logic paused (soft) due to book opening.");
-        }
 
-        bookUI.SetActive(true);
-        bookAnimator.Play("BookOpen1");
-        bookOpen = true;
-        BookIsOpen = true;
+        bookUI.SetActive(true); // Show book UI
+        bookAnimator.Play("BookOpen1"); // Play book open animation
+        bookOpen = true; // Mark book as open
+        BookIsOpen = true; // Update static state
 
-        Invoke(nameof(PlayTabAppear), bookOpenDelay);
-        Invoke(nameof(ShowTabs), bookOpenDelay + tabAppearDelay);
-        Invoke(nameof(FinishOpenBook), bookOpenDelay + tabAppearDelay + 0.1f);
+        Invoke(nameof(PlayTabAppear), bookOpenDelay); // Schedule tab animation
+        Invoke(nameof(ShowTabs), bookOpenDelay + tabAppearDelay); // Schedule tab visibility
+        Invoke(nameof(FinishOpenBook), bookOpenDelay + tabAppearDelay + 0.1f); // Schedule page switch
     }
 
-    public void CloseBook()
+    public void CloseBook() // Closes the book
     {
-        // ? Resume soft pause if caused by book
-        if (PauseManager.Instance != null && PauseManager.Instance.CurrentPauseType == PauseType.Combat)
-        {
+        if (PauseManager.Instance != null && PauseManager.Instance.CurrentPauseType == PauseType.Combat) // Resume gameplay
             PauseManager.Instance.Resume();
-            Debug.Log("[BookUI] Game logic resumed after closing book.");
-        }
 
-        // ? Reset page state immediately
-        currentPage = 0;
-        pendingPageIndex = 0;
+        currentPage = 0; // Reset current page
+        pendingPageIndex = 0; // Reset pending page
+        foreach (var page in pages) page.SetActive(false); // Hide all pages
+        HideTabs(); // Hide tabs
 
-        // ? Hide all pages
-        foreach (var page in pages)
-            page.SetActive(false);
+        bookAnimator.Play("TabDissapearNI1"); // Play tab disappear animation
+        Invoke(nameof(PlayBookClose), tabDisappearDelay); // Schedule book close
+        Invoke(nameof(HideAll), tabDisappearDelay + bookCloseDelay); // Schedule UI hide
 
-        HideTabs();
-
-        // ? Run close animations
-        bookAnimator.Play("TabDissapearNI1");
-        Invoke(nameof(PlayBookClose), tabDisappearDelay);
-        Invoke(nameof(HideAll), tabDisappearDelay + bookCloseDelay);
-
-        bookOpen = false;
-        BookIsOpen = false;
+        bookOpen = false; // Mark as closed
+        BookIsOpen = false; // Update static state
     }
 
-    IEnumerator DelayInitialPageDisplay()
+    IEnumerator DelayInitialPageDisplay() // Displays first page with delay
     {
-        contentAnimator.gameObject.SetActive(true);
-        contentAnimator.Play("ContentAppear1");
-
-        yield return new WaitForSecondsRealtime(contentTransitionDelay);
-
-        SwitchToPage(pendingPageIndex);
-
-        contentAnimator.gameObject.SetActive(false);
+        contentAnimator.gameObject.SetActive(true); // Show content animator
+        contentAnimator.Play("ContentAppear1"); // Play appear animation
+        yield return new WaitForSecondsRealtime(contentTransitionDelay); // Wait
+        SwitchToPage(pendingPageIndex); // Switch to pending page
+        contentAnimator.gameObject.SetActive(false); // Hide content animator
     }
 
-    void PlayTabAppear()
-    {
-        bookAnimator.Play("TabAppearNI1");
-    }
+    void PlayTabAppear() => bookAnimator.Play("TabAppearNI1"); // Play tab appear animation
+    void ShowTabs() => tabsContainer.SetActive(true); // Enable tab container
+    void HideTabs() => tabsContainer.SetActive(false); // Disable tab container
+    void PlayBookClose() => bookAnimator.Play("BookClose2"); // Play book close animation
 
-    void ShowTabs()
+    void FinishOpenBook() // Called after book open sequence
     {
-        tabsContainer.SetActive(true);
-    }
-
-    void FinishOpenBook()
-    {
-        if (isFirstOpen)
+        if (isFirstOpen) // If first time opening
         {
-            isFirstOpen = false;
-            StartCoroutine(DelayInitialPageDisplay());
+            isFirstOpen = false; // Mark as opened
+            StartCoroutine(DelayInitialPageDisplay()); // Delay before showing first page
         }
-        else
-        {
-            SwitchToPage(pendingPageIndex);
-        }
+        else SwitchToPage(pendingPageIndex); // Otherwise switch instantly
     }
 
-    void HideTabs()
+    void HideAll() // Hides book UI and pages
     {
-        tabsContainer.SetActive(false);
+        bookUI.SetActive(false); // Hide root book UI
+        foreach (var page in pages) page.SetActive(false); // Hide all pages
     }
 
-    void PlayBookClose()
+    public void OnClickTab(int newIndex) // Called when clicking a tab
     {
-        bookAnimator.Play("BookClose2");
+        if (!bookOpen || newIndex == currentPage) return; // Skip if invalid or same page
+        StartCoroutine(SwitchPageWithTransition(newIndex)); // Transition to new page
     }
 
-    void HideAll()
+    IEnumerator SwitchPageWithTransition(int newPage) // Handles tab/page transitions
     {
-        bookUI.SetActive(false);
-        foreach (var page in pages)
-            page.SetActive(false);
+        contentAnimator.gameObject.SetActive(true); // Show content animator
+        contentAnimator.Play("ContentAppear1"); // Play appear animation
+        yield return new WaitForSecondsRealtime(contentTransitionDelay); // Wait
+
+        bookAnimator.Play("TabDissapearNI1"); // Play tab disappear animation
+        yield return new WaitForSecondsRealtime(tabDisappearDelay); // Wait
+
+        tabsContainer.SetActive(false); // Hide tab container
+        foreach (var page in pages) page.SetActive(false); // Hide all pages
+
+        if (newPage > currentPage) bookAnimator.Play("PageFlipR1"); // Play right flip animation
+        else bookAnimator.Play("PageFlipL1"); // Play left flip animation
+
+        yield return new WaitForSecondsRealtime(pageFlipDelay); // Wait for flip
+
+        bookAnimator.Play("TabAppearNI1"); // Play tab reappear animation
+        yield return new WaitForSecondsRealtime(tabAppearDelay); // Wait
+        tabsContainer.SetActive(true); // Show tab container
+
+        contentAnimator.Play("ContentDissapear1"); // Play content disappear animation
+        yield return new WaitForSecondsRealtime(contentTransitionDelay); // Wait
+
+        pages[newPage].SetActive(true); // Show new page
+        contentAnimator.gameObject.SetActive(false); // Hide animator
+        currentPage = newPage; // Update current page
     }
 
-    public void OnClickTab(int newIndex)
+    void SwitchToPage(int index) // Switch instantly to a specific page
     {
-        if (!bookOpen || newIndex == currentPage)
-            return;
-
-        StartCoroutine(SwitchPageWithTransition(newIndex));
-    }
-
-    IEnumerator SwitchPageWithTransition(int newPage)
-    {
-        contentAnimator.gameObject.SetActive(true);
-        contentAnimator.Play("ContentAppear1");
-        yield return new WaitForSecondsRealtime(contentTransitionDelay);
-
-        bookAnimator.Play("TabDissapearNI1");
-        yield return new WaitForSecondsRealtime(tabDisappearDelay);
-
-        tabsContainer.SetActive(false);
-
-        foreach (var page in pages)
-            page.SetActive(false);
-
-        if (newPage > currentPage)
-            bookAnimator.Play("PageFlipR1");
-        else
-            bookAnimator.Play("PageFlipL1");
-
-        yield return new WaitForSecondsRealtime(pageFlipDelay);
-
-        bookAnimator.Play("TabAppearNI1");
-        yield return new WaitForSecondsRealtime(tabAppearDelay);
-        tabsContainer.SetActive(true);
-
-        contentAnimator.Play("ContentDissapear1");
-        yield return new WaitForSecondsRealtime(contentTransitionDelay);
-
-        pages[newPage].SetActive(true);
-        contentAnimator.gameObject.SetActive(false);
-        currentPage = newPage;
-    }
-
-    void SwitchToPage(int index)
-    {
-        for (int i = 0; i < pages.Length; i++)
-            pages[i].SetActive(i == index);
+        for (int i = 0; i < pages.Length; i++) pages[i].SetActive(i == index); // Enable only target page
     }
 }

@@ -3,63 +3,45 @@ using Yarn.Unity;
 
 public class TradeWatcher : MonoBehaviour
 {
-    public DialogueRunner runner;
+    public DialogueRunner runner; // Reference to DialogueRunner controlling Yarn variables
 
-    public ItemData daturaFlower;
-    public ItemData healingMixture;
-    public ItemData breadLoaf;
-    public ItemData smokableHerbs;
+    public ItemData daturaFlower; // Item data for datura
+    public ItemData healingMixture; // Item data for healing mixture
+    public ItemData breadLoaf; // Item data for bread
+    public ItemData smokableHerbs; // Item data for herbs
 
-    private string lastProcessedTrade = "";
+    private string lastProcessedTrade = ""; // Keeps track of the last processed trade to avoid repeats
 
-    void Update()
+    void Update() // Called every frame
     {
-        if (runner == null || runner.VariableStorage == null)
-            return;
+        if (runner == null || runner.VariableStorage == null) return; // Skip if DialogueRunner or storage is missing
 
-        // Get the current trade item value
-        if (runner.VariableStorage.TryGetValue("$trade_item", out object valueObj))
+        if (runner.VariableStorage.TryGetValue("$trade_item", out object valueObj)) // Try to read Yarn variable $trade_item
         {
-            string currentTrade = valueObj as string;
+            string currentTrade = valueObj as string; // Convert stored value to string
 
-            if (!string.IsNullOrEmpty(currentTrade) && currentTrade != lastProcessedTrade)
+            if (!string.IsNullOrEmpty(currentTrade) && currentTrade != lastProcessedTrade) // Only process if not empty and not already handled
             {
-                Debug.Log($"?? TradeWatcher detected trade item: {currentTrade}");
-
-                GiveItem(currentTrade);
-                lastProcessedTrade = currentTrade;
-
-                // Reset the trade_item variable
-                runner.VariableStorage.SetValue("$trade_item", "");
+                GiveItem(currentTrade); // Give item to player
+                lastProcessedTrade = currentTrade; // Remember what was processed
+                runner.VariableStorage.SetValue("$trade_item", ""); // Reset variable after handling
             }
         }
     }
 
-    void GiveItem(string tradeName)
+    void GiveItem(string tradeName) // Handles giving items based on trade key
     {
-        ItemData itemToGive = null;
+        ItemData itemToGive = null; // Placeholder for selected item
 
-        switch (tradeName)
+        switch (tradeName) // Match Yarn trade key to item data
         {
-            case "datura": itemToGive = daturaFlower; break;
-            case "healing": itemToGive = healingMixture; break;
-            case "bread": itemToGive = breadLoaf; break;
-            case "herbs": itemToGive = smokableHerbs; break;
+            case "datura": itemToGive = daturaFlower; break; // Select datura
+            case "healing": itemToGive = healingMixture; break; // Select healing mixture
+            case "bread": itemToGive = breadLoaf; break; // Select bread
+            case "herbs": itemToGive = smokableHerbs; break; // Select herbs
         }
 
-        if (itemToGive == null)
-        {
-            Debug.LogError($"? No ItemData assigned for: {tradeName}");
-            return;
-        }
-
-        if (Inventory.instance == null)
-        {
-            Debug.LogError("? Inventory.instance not found!");
-            return;
-        }
-
-        Inventory.instance.AddItem(itemToGive);
-        Debug.Log($"? {itemToGive.displayName} added to inventory via TradeWatcher");
+        if (itemToGive != null && Inventory.instance != null) // Ensure item and inventory exist
+            Inventory.instance.AddItem(itemToGive); // Add item to inventory
     }
 }

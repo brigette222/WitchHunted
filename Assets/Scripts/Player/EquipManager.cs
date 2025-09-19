@@ -6,37 +6,31 @@ using UnityEngine.InputSystem;
 
 public class EquipManager : MonoBehaviour
 {
-    public Equip curEquip;
-    public Transform equipParent;
+    public Equip curEquip; // Reference to currently equipped item
+    public Transform equipParent; // Parent transform where equipped item is attached
 
-    private Player controller;
+    private Player controller; // Reference to the player script
 
-    // singleton
-    public static EquipManager instance;
+    public static EquipManager instance; // Singleton instance
 
-    void Awake()
+    void Awake() // Called before Start
     {
-        instance = this;
-        controller = GetComponent<Player>();
+        instance = this; // Assign singleton
+        controller = GetComponent<Player>(); // Cache Player reference
     }
 
- 
-
-
-    // called when we equip an item
-    public void EquipNew(ItemData item)
+    public void EquipNew(ItemData item) // Called when equipping a new item
     {
-        UnEquip();
-        curEquip = Instantiate(item.equipPrefab, equipParent).GetComponent<Equip>();
+        UnEquip(); // Remove any currently equipped item
+        curEquip = Instantiate(item.equipPrefab, equipParent).GetComponent<Equip>(); // Spawn new equipment
     }
 
-    // called when we un-equip an item
-    public void UnEquip()
+    public void UnEquip() // Called when unequipping the current item
     {
-        if (curEquip != null)
+        if (curEquip != null) // If something is equipped
         {
-            Destroy(curEquip.gameObject);
-            curEquip = null;
+            Destroy(curEquip.gameObject); // Destroy the equipped item
+            curEquip = null; // Clear reference
         }
     }
 }

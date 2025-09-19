@@ -3,50 +3,29 @@ using Yarn.Unity;
 
 public class WoundedKnightWatcher : MonoBehaviour
 {
-    public DialogueRunner runner;
-    public ItemData healingSalve;
-    public ItemData severedHead;
+    public DialogueRunner runner; // Reference to Yarn's DialogueRunner
+    public ItemData healingSalve; // Reference to the healing salve item
+    public ItemData severedHead; // Reference to the severed head item
 
-    private void Start()
+    private void Start() // Called once when the object is initialized
     {
-        if (runner == null) runner = FindObjectOfType<DialogueRunner>();
+        if (runner == null) runner = FindObjectOfType<DialogueRunner>(); // Auto-assign DialogueRunner if not set
     }
 
-    private void Update()
+    private void Update() // Called every frame
     {
-        if (runner == null || runner.VariableStorage == null)
-            return;
+        if (runner == null || runner.VariableStorage == null) return; // Skip if DialogueRunner or storage is missing
 
-        // HEALING SALVE REMOVAL
-        if (runner.VariableStorage.TryGetValue("$remove_healing_salve", out object removeObj) && (bool)removeObj)
+        if (runner.VariableStorage.TryGetValue("$remove_healing_salve", out object removeObj) && (bool)removeObj) // Check if healing salve should be removed
         {
-            if (Inventory.instance != null && healingSalve != null)
-            {
-                Inventory.instance.RemoveItem(healingSalve);
-                Debug.Log("[WoundedKnightWatcher] Removed Healing Salve from inventory.");
-            }
-            else
-            {
-                Debug.LogWarning("[WoundedKnightWatcher] Missing Inventory or Healing Salve reference.");
-            }
-
-            runner.VariableStorage.SetValue("$remove_healing_salve", false);
+            if (Inventory.instance != null && healingSalve != null) Inventory.instance.RemoveItem(healingSalve); // Remove healing salve if possible
+            runner.VariableStorage.SetValue("$remove_healing_salve", false); // Reset flag after handling
         }
 
-        // SEVERED HEAD ADDITION
-        if (runner.VariableStorage.TryGetValue("$take_head", out object takeHeadObj) && (bool)takeHeadObj)
+        if (runner.VariableStorage.TryGetValue("$take_head", out object takeHeadObj) && (bool)takeHeadObj) // Check if severed head should be added
         {
-            if (Inventory.instance != null && severedHead != null)
-            {
-                Inventory.instance.AddItem(severedHead);
-                Debug.Log("[WoundedKnightWatcher] Added Severed Head to inventory.");
-            }
-            else
-            {
-                Debug.LogWarning("[WoundedKnightWatcher] Missing Inventory or Severed Head reference.");
-            }
-
-            runner.VariableStorage.SetValue("$take_head", false);
+            if (Inventory.instance != null && severedHead != null) Inventory.instance.AddItem(severedHead); // Add severed head if possible
+            runner.VariableStorage.SetValue("$take_head", false); // Reset flag after handling
         }
     }
 }

@@ -8,226 +8,154 @@ using UnityEngine.Events;
 
 public class Inventory : MonoBehaviour
 {
-    public static Inventory instance;
+    public static Inventory instance; // Singleton instance
 
-    public ItemSlotUI[] uiSlots;
-    public ItemSlot[] slots;
+    public ItemSlotUI[] uiSlots; // UI slots representing inventory
+    public ItemSlot[] slots; // Data slots storing items
 
-    public GameObject inventoryWindow;
-    public Transform dropPosition;
+    public GameObject inventoryWindow; // UI window reference
+    public Transform dropPosition; // Where dropped items appear in world
 
     [Header("Selected Item")]
-    private ItemSlot selectedItem;
-    private int selectedItemIndex;
-    public TextMeshProUGUI selectedItemName;
-    public TextMeshProUGUI selectedItemDescription;
-    public TextMeshProUGUI selectedItemStatNames;
-    public TextMeshProUGUI selectedItemStatValues;
-    public GameObject useButton;
-    public GameObject equipButton;
-    public GameObject unEquipButton;
-    public GameObject dropButton;
+    private ItemSlot selectedItem; // Currently selected slot
+    private int selectedItemIndex; // Index of selected slot
+    public TextMeshProUGUI selectedItemName; // UI name text
+    public TextMeshProUGUI selectedItemDescription; // UI description text
+    public TextMeshProUGUI selectedItemStatNames; // UI stat names
+    public TextMeshProUGUI selectedItemStatValues; // UI stat values
+    public GameObject useButton; // Button for consumables
+    public GameObject equipButton; // Button for equippable
+    public GameObject unEquipButton; // Button for unequipping
+    public GameObject dropButton; // Button for dropping
 
-    private int curEquipIndex;
+    private int curEquipIndex; // Index of equipped slot
 
-    private Player controller;
-    public PlayerNeeds needs;
+    private Player controller; // Reference to player
+    public PlayerNeeds needs; // Reference to player needs system
 
     [Header("Events")]
-    public UnityEvent onOpenInventory;
-    public UnityEvent onCloseInventory;
+    public UnityEvent onOpenInventory; // Event when opened
+    public UnityEvent onCloseInventory; // Event when closed
 
-    private bool hasInitialized = false;
+    private bool hasInitialized = false; // Tracks initialization
 
-    void Awake()
+    void Awake() // Called before Start
     {
-        if (instance != null && instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        instance = this;
-
-        controller = GetComponent<Player>();
-        needs = GetComponent<PlayerNeeds>();
+        if (instance != null && instance != this) { Destroy(gameObject); return; } // Enforce singleton
+        instance = this; // Assign instance
+        controller = GetComponent<Player>(); // Cache player reference
+        needs = GetComponent<PlayerNeeds>(); // Cache player needs reference
     }
 
-    void Start()
+    void Start() // Called once
     {
-        if (!hasInitialized)
+        if (!hasInitialized) // Initialize slots
         {
-            slots = new ItemSlot[uiSlots.Length];
-
-            for (int x = 0; x < slots.Length; x++)
-            {
-                slots[x] = new ItemSlot();
-                uiSlots[x].index = x;
-                uiSlots[x].Clear();
-            }
-
-            ClearSelectedItemWindow();
-            inventoryWindow.SetActive(false);
-            hasInitialized = true;
+            slots = new ItemSlot[uiSlots.Length]; // Create slot array
+            for (int x = 0; x < slots.Length; x++) { slots[x] = new ItemSlot(); uiSlots[x].index = x; uiSlots[x].Clear(); }
+            ClearSelectedItemWindow(); // Reset selected window
+            inventoryWindow.SetActive(false); // Hide window
+            hasInitialized = true; // Mark initialized
         }
-        else
+        else // If already initialized, just resync UI
         {
-            for (int x = 0; x < uiSlots.Length; x++)
-            {
-                uiSlots[x].index = x;
-            }
-
+            for (int x = 0; x < uiSlots.Length; x++) uiSlots[x].index = x;
             UpdateUI();
         }
     }
 
-    void Update()
+    void Update() // Called every frame
     {
-        if (Keyboard.current.iKey.wasPressedThisFrame)
+        if (Keyboard.current.iKey.wasPressedThisFrame) Toggle(); // Toggle inventory with I key
+    }
+
+    public void OnInventoryButton(InputAction.CallbackContext context) // Input System handler
+    {
+        if (context.phase == InputActionPhase.Started) Toggle(); // Toggle on press
+    }
+
+    public void Toggle() // Opens/closes inventory
+    {
+        if (inventoryWindow.activeInHierarchy) // If open
         {
-            Toggle();
+            inventoryWindow.SetActive(false); // Hide window
+            onCloseInventory.Invoke(); // Trigger close event
+            controller.ToggleCursor(false); // Lock cursor
+        }
+        else // If closed
+        {
+            inventoryWindow.SetActive(true); // Show window
+            onOpenInventory.Invoke(); // Trigger open event
+            ClearSelectedItemWindow(); // Reset details
+            controller.ToggleCursor(true); // Unlock cursor
         }
     }
 
-    public void OnInventoryButton(InputAction.CallbackContext context)
+    public bool IsOpen() => inventoryWindow.activeInHierarchy; // Check if open
+
+    public void AddItem(ItemData item) // Add item to inventory
     {
-        if (context.phase == InputActionPhase.Started)
+        if (item.canStack) // If stackable
         {
-            Toggle();
+            ItemSlot slotToStackTo = GetItemStack(item); // Try stack
+            if (slotToStackTo != null) { slotToStackTo.quantity++; UpdateUI(); return; }
         }
+
+        ItemSlot emptySlot = GetEmptySlot(); // Try empty slot
+        if (emptySlot != null) { emptySlot.item = item; emptySlot.quantity = 1; UpdateUI(); return; }
+
+        ThrowItem(item); // If full, drop it
     }
 
-    public void Toggle()
-    {
-        if (inventoryWindow.activeInHierarchy)
-        {
-            inventoryWindow.SetActive(false);
-            onCloseInventory.Invoke();
-            controller.ToggleCursor(false);
-        }
-        else
-        {
-            inventoryWindow.SetActive(true);
-            onOpenInventory.Invoke();
-            ClearSelectedItemWindow();
-            controller.ToggleCursor(true);
-        }
-    }
+    void ThrowItem(ItemData item) => Instantiate(item.dropPrefab, dropPosition.position, Quaternion.identity); // Drop item in world
 
-    public bool IsOpen() => inventoryWindow.activeInHierarchy;
-
-    public void AddItem(ItemData item)
-    {
-        if (item.canStack)
-        {
-            ItemSlot slotToStackTo = GetItemStack(item);
-            if (slotToStackTo != null)
-            {
-                slotToStackTo.quantity++;
-                UpdateUI();
-                return;
-            }
-        }
-
-        ItemSlot emptySlot = GetEmptySlot();
-        if (emptySlot != null)
-        {
-            emptySlot.item = item;
-            emptySlot.quantity = 1;
-            UpdateUI();
-            return;
-        }
-
-        ThrowItem(item);
-    }
-
-    void ThrowItem(ItemData item)
-    {
-        Instantiate(item.dropPrefab, dropPosition.position, Quaternion.identity);
-    }
-
-    public void UpdateUI()
+    public void UpdateUI() // Refresh UI
     {
         for (int x = 0; x < slots.Length; x++)
         {
-            if (slots[x] == null)
-                continue;
-
-            if (slots[x].item != null)
-            {
-                uiSlots[x].Set(slots[x]);
-            }
-            else
-            {
-                uiSlots[x].Clear();
-            }
+            if (slots[x] == null) continue;
+            if (slots[x].item != null) uiSlots[x].Set(slots[x]); else uiSlots[x].Clear();
         }
     }
 
-    ItemSlot GetItemStack(ItemData item)
+    ItemSlot GetItemStack(ItemData item) // Find stack slot
     {
-        for (int x = 0; x < slots.Length; x++)
-        {
-            if (slots[x].item == item && slots[x].quantity < item.maxStackAmount)
-                return slots[x];
-        }
+        for (int x = 0; x < slots.Length; x++) if (slots[x].item == item && slots[x].quantity < item.maxStackAmount) return slots[x];
         return null;
     }
 
-    ItemSlot GetEmptySlot()
+    ItemSlot GetEmptySlot() // Find empty slot
     {
-        for (int x = 0; x < slots.Length; x++)
-        {
-            if (slots[x].item == null)
-                return slots[x];
-        }
+        for (int x = 0; x < slots.Length; x++) if (slots[x].item == null) return slots[x];
         return null;
     }
 
-    public void SelectItem(int index)
+    public void SelectItem(int index) // Selects an item
     {
-        if (slots[index].item == null)
-            return;
-
-        selectedItem = slots[index];
-        selectedItemIndex = index;
-
-        selectedItemName.text = selectedItem.item.displayName;
-        selectedItemDescription.text = selectedItem.item.description;
-
-        selectedItemStatNames.text = string.Empty;
-        selectedItemStatValues.text = string.Empty;
-
-        foreach (var stat in selectedItem.item.consumables)
-        {
-            selectedItemStatNames.text += stat.type.ToString() + "\n";
-            selectedItemStatValues.text += stat.value.ToString() + "\n";
-        }
-
-        useButton.SetActive(selectedItem.item.type == ItemType.Consumable);
-        equipButton.SetActive(selectedItem.item.type == ItemType.Equipable && !uiSlots[index].equipped);
-        unEquipButton.SetActive(selectedItem.item.type == ItemType.Equipable && uiSlots[index].equipped);
-        dropButton.SetActive(true);
+        if (slots[index].item == null) return;
+        selectedItem = slots[index]; selectedItemIndex = index;
+        selectedItemName.text = selectedItem.item.displayName; // Show name
+        selectedItemDescription.text = selectedItem.item.description; // Show description
+        selectedItemStatNames.text = string.Empty; selectedItemStatValues.text = string.Empty; // Clear stats
+        foreach (var stat in selectedItem.item.consumables) { selectedItemStatNames.text += stat.type + "\n"; selectedItemStatValues.text += stat.value + "\n"; } // Add stats
+        useButton.SetActive(selectedItem.item.type == ItemType.Consumable); // Show use if consumable
+        equipButton.SetActive(selectedItem.item.type == ItemType.Equipable && !uiSlots[index].equipped); // Show equip if equippable
+        unEquipButton.SetActive(selectedItem.item.type == ItemType.Equipable && uiSlots[index].equipped); // Show unequip if equipped
+        dropButton.SetActive(true); // Always show drop
     }
 
-    void ClearSelectedItemWindow()
+    void ClearSelectedItemWindow() // Clears UI details
     {
-        selectedItem = null;
-        selectedItemName.text = "";
-        selectedItemDescription.text = "";
-        selectedItemStatNames.text = "";
-        selectedItemStatValues.text = "";
-        useButton.SetActive(false);
-        equipButton.SetActive(false);
-        unEquipButton.SetActive(false);
-        dropButton.SetActive(false);
+        selectedItem = null; selectedItemName.text = ""; selectedItemDescription.text = "";
+        selectedItemStatNames.text = ""; selectedItemStatValues.text = "";
+        useButton.SetActive(false); equipButton.SetActive(false); unEquipButton.SetActive(false); dropButton.SetActive(false);
     }
 
-    public void OnUseButton()
+    public void OnUseButton() // Consume item
     {
-        if (selectedItem.item.type == ItemType.Consumable)
+        if (selectedItem.item.type == ItemType.Consumable) // If consumable
         {
-            foreach (var stat in selectedItem.item.consumables)
+            foreach (var stat in selectedItem.item.consumables) // Apply each effect
             {
                 switch (stat.type)
                 {
@@ -238,142 +166,90 @@ public class Inventory : MonoBehaviour
                 }
             }
         }
-
-        RemoveSelectedItem();
+        RemoveSelectedItem(); // Remove after use
     }
 
-    public void OnEquipButton()
+    public void OnEquipButton() // Equip item
     {
-        if (uiSlots[curEquipIndex].equipped)
-            UnEquip(curEquipIndex);
-
-        uiSlots[selectedItemIndex].equipped = true;
-        curEquipIndex = selectedItemIndex;
-        EquipManager.instance.EquipNew(selectedItem.item);
-        UpdateUI();
-        SelectItem(selectedItemIndex);
+        if (uiSlots[curEquipIndex].equipped) UnEquip(curEquipIndex); // Unequip current
+        uiSlots[selectedItemIndex].equipped = true; curEquipIndex = selectedItemIndex; // Mark equipped
+        EquipManager.instance.EquipNew(selectedItem.item); // Equip item
+        UpdateUI(); SelectItem(selectedItemIndex); // Refresh UI
     }
 
-    void UnEquip(int index)
+    void UnEquip(int index) // Unequip item
     {
-        uiSlots[index].equipped = false;
-        EquipManager.instance.UnEquip();
-        UpdateUI();
-        if (selectedItemIndex == index)
-            SelectItem(index);
+        uiSlots[index].equipped = false; // Mark as not equipped
+        EquipManager.instance.UnEquip(); // Clear equipment
+        UpdateUI(); if (selectedItemIndex == index) SelectItem(index); // Refresh
     }
 
-    public void OnUnEquipButton() => UnEquip(selectedItemIndex);
+    public void OnUnEquipButton() => UnEquip(selectedItemIndex); // Button handler
 
-    public void OnDropButton()
+    public void OnDropButton() { ThrowItem(selectedItem.item); RemoveSelectedItem(); } // Drop item
+
+    void RemoveSelectedItem() // Removes one of selected item
     {
-        ThrowItem(selectedItem.item);
-        RemoveSelectedItem();
-    }
-
-    void RemoveSelectedItem()
-    {
-        selectedItem.quantity--;
-
-        if (selectedItem.quantity <= 0)
+        selectedItem.quantity--; // Decrease count
+        if (selectedItem.quantity <= 0) // If none left
         {
-            if (uiSlots[selectedItemIndex].equipped)
-                UnEquip(selectedItemIndex);
-
-            selectedItem.item = null;
-            ClearSelectedItemWindow();
+            if (uiSlots[selectedItemIndex].equipped) UnEquip(selectedItemIndex); // Unequip if needed
+            selectedItem.item = null; ClearSelectedItemWindow(); // Clear slot
         }
-
-        UpdateUI();
+        UpdateUI(); // Refresh
     }
 
-    public void RemoveItem(ItemData item)
+    public void RemoveItem(ItemData item) // Removes item by reference
     {
-        for (int i = 0; i < slots.Length; i++)
+        for (int i = 0; i < slots.Length; i++) // Search all slots
         {
-            if (slots[i].item == item)
+            if (slots[i].item == item) // Found match
             {
-                slots[i].quantity--;
-
-                if (slots[i].quantity <= 0)
+                slots[i].quantity--; // Decrease count
+                if (slots[i].quantity <= 0) // If empty
                 {
-                    if (uiSlots[i].equipped)
-                        UnEquip(i);
-
-                    slots[i].item = null;
-                    ClearSelectedItemWindow();
+                    if (uiSlots[i].equipped) UnEquip(i); // Unequip if equipped
+                    slots[i].item = null; ClearSelectedItemWindow(); // Clear slot
                 }
-
-                UpdateUI();
-                return;
+                UpdateUI(); return; // Refresh and stop
             }
         }
     }
 
-    public void ReassignUISlots(ItemSlotUI[] newUISlots)
+    public void ReassignUISlots(ItemSlotUI[] newUISlots) // Rebinds UI slots dynamically
     {
-        uiSlots = newUISlots;
-
-        for (int i = 0; i < uiSlots.Length; i++)
+        uiSlots = newUISlots; // Store reference
+        for (int i = 0; i < uiSlots.Length; i++) // Loop through slots
         {
-            uiSlots[i].index = i;
-            uiSlots[i].equipped = false;
-
-            if (slots != null && i < slots.Length)
-            {
-                uiSlots[i].Set(slots[i]);
-            }
-            else
-            {
-                uiSlots[i].Clear();
-            }
+            uiSlots[i].index = i; uiSlots[i].equipped = false; // Reset
+            if (slots != null && i < slots.Length) uiSlots[i].Set(slots[i]); else uiSlots[i].Clear(); // Populate
         }
-
-        UpdateUI();
+        UpdateUI(); // Refresh
     }
 
-    public void ClearInventory()
+    public void ClearInventory() // Clears all items
     {
-        for (int x = 0; x < slots.Length; x++)
-        {
-            slots[x].item = null;
-            slots[x].quantity = 0;
-        }
-
-        UpdateUI();
-        ClearSelectedItemWindow();
+        for (int x = 0; x < slots.Length; x++) { slots[x].item = null; slots[x].quantity = 0; } // Reset slots
+        UpdateUI(); ClearSelectedItemWindow(); // Refresh
     }
 
-    public bool HasItems(ItemData item, int quantity)
+    public bool HasItems(ItemData item, int quantity) // Checks if player has required items
     {
-        int amount = 0;
-
-        for (int i = 0; i < slots.Length; i++)
+        int amount = 0; // Running total
+        for (int i = 0; i < slots.Length; i++) // Loop through slots
         {
-            if (slots[i].item != null)
+            if (slots[i].item != null && slots[i].item.name == item.name) // Match by name
             {
-                // Compare by name instead of object reference
-                if (slots[i].item.name == item.name)
-                {
-                    amount += slots[i].quantity;
-                    Debug.Log($"[Inventory] Found match: {slots[i].item.name} (x{slots[i].quantity}) ? Total: {amount}");
-
-                    if (amount >= quantity)
-                    {
-                        Debug.Log("[Inventory] Required amount met. Returning true.");
-                        return true;
-                    }
-                }
+                amount += slots[i].quantity; // Add quantity
+                if (amount >= quantity) return true; // Enough found
             }
         }
-
-        Debug.Log("[Inventory] Item not found or not enough quantity.");
-        return false;
+        return false; // Not enough
     }
 }
 
-public class ItemSlot
+public class ItemSlot // Represents one inventory slot
 {
-    public ItemData item;
-    public int quantity;
+    public ItemData item; // Item reference
+    public int quantity; // Quantity stored
 }

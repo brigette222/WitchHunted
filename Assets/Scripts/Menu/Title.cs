@@ -3,16 +3,15 @@ using UnityEngine.SceneManagement;
 
 public class MenuManager : MonoBehaviour
 {
-    public string levelIntroSceneName = "LevelIntro"; // Set this to your intro scene name
+    public string levelIntroSceneName = "LevelIntro"; // Name of the intro scene to load
 
-    public void StartGame()
+    public void StartGame() // Loads the intro scene
     {
-        SceneManager.LoadScene(levelIntroSceneName);
+        SceneManager.LoadScene(levelIntroSceneName); // Load specified scene
     }
 
-    public void QuitGame()
+    public void QuitGame() // Exits the application
     {
-        Debug.Log("Quitting game...");
-        Application.Quit();
+        Application.Quit(); // Quit the game (works only in builds)
     }
 }

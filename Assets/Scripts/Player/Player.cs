@@ -5,152 +5,129 @@ using Yarn.Unity;
 
 public class Player : MonoBehaviour
 {
-    public static Player instance;
+    public static Player instance; // Singleton reference
 
-    public float speed;
+    public float speed; // Movement speed
 
-    LayerMask obstacleMask;
-    Vector2 targetPos;
-    Transform GFX;
-    float flipX;
-    bool isMoving;
+    LayerMask obstacleMask; // Walls/enemies mask
+    Vector2 targetPos; // Position we move toward
+    Transform GFX; // Graphics transform
+    float flipX; // Flip scale reference
+    bool isMoving; // Movement state
 
-    private SpriteRenderer sr;
+    private SpriteRenderer sr; // Cached SpriteRenderer
 
     [Header("Idle Sprites")]
-    public Sprite[] idleDown, idleUp, idleLeft, idleRight;
+    public Sprite[] idleDown, idleUp, idleLeft, idleRight; // Idle animations
 
     [Header("Walk Sprites")]
-    public Sprite[] walkDown, walkUp, walkLeft, walkRight;
+    public Sprite[] walkDown, walkUp, walkLeft, walkRight; // Walk animations
 
-    private float animationTimer;
-    public float frameRate = 0.1f;
-    private int frameIndex;
-    private Vector2 lastMoveDir = Vector2.down;
+    private float animationTimer; // Timer for frame switching
+    public float frameRate = 0.1f; // Animation speed
+    private int frameIndex; // Current frame index
+    private Vector2 lastMoveDir = Vector2.down; // Tracks facing direction
 
     [Header("Dialogue Trigger Detection")]
-    public float triggerRadius = 1.5f;
-    public LayerMask triggerLayer;
+    public float triggerRadius = 1.5f; // Auto-dialogue radius
+    public LayerMask triggerLayer; // Layers containing dialogue triggers
 
-    [HideInInspector] public bool canMove = true;
+    [HideInInspector] public bool canMove = true; // Whether movement is allowed
 
     [Header("Footstep Sound")]
-    public AudioSource footstepSource;
-    public AudioClip footstepClip;
+    public AudioSource footstepSource; // Audio source for footsteps
+    public AudioClip footstepClip; // Footstep sound clip
 
-    void Awake()
+    void Awake() // Called before Start
     {
-        if (instance != null && instance != this)
+        if (instance != null && instance != this) { Destroy(gameObject); return; } // Enforce singleton
+        instance = this; // Assign instance
+    }
+
+    void OnEnable() => SceneManager.sceneLoaded += OnSceneLoaded; // Subscribe to scene load event
+    void OnDisable() => SceneManager.sceneLoaded -= OnSceneLoaded; // Unsubscribe
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode) // Reset position when scene loads
+    {
+        transform.position = Vector2.zero; // Reset to origin
+        targetPos = transform.position; // Sync target
+    }
+
+    void Start() // Called once
+    {
+        obstacleMask = LayerMask.GetMask("Wall", "Enemy"); // Detect walls and enemies
+        GFX = GetComponentInChildren<SpriteRenderer>().transform; // Get graphics child
+        sr = GFX.GetComponent<SpriteRenderer>(); // Cache SpriteRenderer
+        flipX = GFX.localScale.x; // Save initial flip scale
+
+        DialogueRunner runner = FindObjectOfType<DialogueRunner>(); // Find DialogueRunner
+        if (runner != null) // Subscribe to dialogue events
         {
-            Destroy(gameObject);
-            return;
+            runner.onDialogueStart.AddListener(() => canMove = false); // Lock movement
+            runner.onDialogueComplete.AddListener(() => canMove = true); // Unlock movement
         }
 
-        instance = this;
+        targetPos = transform.position; // Initialize position
     }
 
-    void OnEnable()
+    void Update() // Called every frame
     {
-        SceneManager.sceneLoaded += OnSceneLoaded;
+        if (!canMove || BookUIController.BookIsOpen) return; // Disable during dialogue/book
+        Move(); // Handle movement
+        Animate(); // Handle animations
+        DetectDialogueTriggers(); // Auto-trigger dialogues
+        UpdateSortingOrder(); // Adjust sprite sorting
     }
 
-    void OnDisable()
+    void Move() // Handles grid-like movement
     {
-        SceneManager.sceneLoaded -= OnSceneLoaded;
-    }
+        float horz = System.Math.Sign(Input.GetAxisRaw("Horizontal")); // Horizontal input
+        float vert = System.Math.Sign(Input.GetAxisRaw("Vertical")); // Vertical input
+        Vector2 inputDir = new Vector2(horz, vert); // Build input vector
 
-    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        transform.position = Vector2.zero;
-        targetPos = transform.position;
-    }
-
-    void Start()
-    {
-        obstacleMask = LayerMask.GetMask("Wall", "Enemy");
-        GFX = GetComponentInChildren<SpriteRenderer>().transform;
-        sr = GFX.GetComponent<SpriteRenderer>();
-        flipX = GFX.localScale.x;
-
-        DialogueRunner runner = FindObjectOfType<DialogueRunner>();
-        if (runner != null)
+        if (Mathf.Abs(horz) > 0 || Mathf.Abs(vert) > 0) // If moving
         {
-            runner.onDialogueStart.AddListener(() => canMove = false);
-            runner.onDialogueComplete.AddListener(() => canMove = true);
-        }
+            lastMoveDir = inputDir; // Update facing direction
+            if (Mathf.Abs(horz) > 0) GFX.localScale = new Vector2(flipX * horz, GFX.localScale.y); // Flip horizontally
 
-        targetPos = transform.position;
-    }
-
-    void Update()
-    {
-        // Don't allow movement if disabled by dialogue or book UI
-        if (!canMove || BookUIController.BookIsOpen)
-            return;
-
-        Move();
-        Animate();
-        DetectDialogueTriggers();
-        UpdateSortingOrder();
-    }
-
-    void Move()
-    {
-        float horz = System.Math.Sign(Input.GetAxisRaw("Horizontal"));
-        float vert = System.Math.Sign(Input.GetAxisRaw("Vertical"));
-
-        Vector2 inputDir = new Vector2(horz, vert);
-
-        if ((Mathf.Abs(horz) > 0) || (Mathf.Abs(vert) > 0))
-        {
-            lastMoveDir = inputDir;
-
-            if (Mathf.Abs(horz) > 0)
-                GFX.localScale = new Vector2(flipX * horz, GFX.localScale.y);
-
-            if (!isMoving)
+            if (!isMoving) // Only move if not already moving
             {
-                if (Mathf.Abs(horz) > 0)
-                    targetPos = new Vector2(transform.position.x + horz, transform.position.y);
-                else if (Mathf.Abs(vert) > 0)
-                    targetPos = new Vector2(transform.position.x, transform.position.y + vert);
+                if (Mathf.Abs(horz) > 0) targetPos = new Vector2(transform.position.x + horz, transform.position.y);
+                else if (Mathf.Abs(vert) > 0) targetPos = new Vector2(transform.position.x, transform.position.y + vert);
 
-                Vector2 hitSize = Vector2.one * 0.8f;
-                Collider2D hit = Physics2D.OverlapBox(targetPos, hitSize, 0, obstacleMask);
-
-                if (!hit)
-                    StartCoroutine(SmoothMove());
+                Vector2 hitSize = Vector2.one * 0.8f; // Collision box size
+                Collider2D hit = Physics2D.OverlapBox(targetPos, hitSize, 0, obstacleMask); // Check collision
+                if (!hit) StartCoroutine(SmoothMove()); // Move if no obstacle
             }
         }
     }
 
-    IEnumerator SmoothMove()
+    IEnumerator SmoothMove() // Smooth transition between tiles
     {
-        isMoving = true;
-        while (Vector2.Distance(transform.position, targetPos) > 0.01f)
+        isMoving = true; // Lock movement
+        while (Vector2.Distance(transform.position, targetPos) > 0.01f) // Move until close
         {
-            transform.position = Vector2.MoveTowards(transform.position, targetPos, speed * Time.deltaTime);
-            yield return null;
+            transform.position = Vector2.MoveTowards(transform.position, targetPos, speed * Time.deltaTime); // Step toward target
+            yield return null; // Wait for next frame
         }
-        transform.position = targetPos;
-        isMoving = false;
-
-        PlayFootstep();
+        transform.position = targetPos; // Snap final position
+        isMoving = false; // Unlock movement
+        PlayFootstep(); // Play sound
     }
 
-    void Animate()
+    void Animate() // Handles walking/idle animations
     {
-        animationTimer += Time.deltaTime;
-        Sprite[] currentFrames = null;
+        animationTimer += Time.deltaTime; // Update timer
+        Sprite[] currentFrames = null; // Which sprite set to use
 
-        if (isMoving)
+        if (isMoving) // Walking animations
         {
             if (lastMoveDir.x > 0) currentFrames = walkRight;
             else if (lastMoveDir.x < 0) currentFrames = walkLeft;
             else if (lastMoveDir.y > 0) currentFrames = walkUp;
             else if (lastMoveDir.y < 0) currentFrames = walkDown;
         }
-        else
+        else // Idle animations
         {
             if (lastMoveDir.x > 0) currentFrames = idleRight;
             else if (lastMoveDir.x < 0) currentFrames = idleLeft;
@@ -158,56 +135,46 @@ public class Player : MonoBehaviour
             else if (lastMoveDir.y < 0) currentFrames = idleDown;
         }
 
-        if (currentFrames != null && currentFrames.Length > 0)
+        if (currentFrames != null && currentFrames.Length > 0 && animationTimer >= frameRate) // Update frame
         {
-            if (animationTimer >= frameRate)
+            frameIndex = (frameIndex + 1) % currentFrames.Length; // Loop frames
+            sr.sprite = currentFrames[frameIndex]; // Set sprite
+            animationTimer = 0f; // Reset timer
+        }
+    }
+
+    void UpdateSortingOrder() // Updates sprite sorting order
+    {
+        if (sr == null) return; // Skip if no renderer
+        sr.sortingLayerName = "Foreground"; // Match environment sorting
+        sr.sortingOrder = Mathf.RoundToInt(transform.position.y * -100); // Order based on Y position
+    }
+
+    void DetectDialogueTriggers() // Detects Yarn dialogue triggers
+    {
+        Collider2D hit = Physics2D.OverlapCircle(transform.position, triggerRadius, triggerLayer); // Check triggers
+        if (hit == null) return; // Skip if none
+        YarnTriggerZone trigger = hit.GetComponent<YarnTriggerZone>(); // Get trigger
+        if (trigger != null && !trigger.hasTriggered) // If not triggered before
+        {
+            DialogueRunner runner = FindObjectOfType<DialogueRunner>(); // Find DialogueRunner
+            if (runner != null && !runner.IsDialogueRunning) // If dialogue not running
             {
-                frameIndex = (frameIndex + 1) % currentFrames.Length;
-                sr.sprite = currentFrames[frameIndex];
-                animationTimer = 0f;
+                runner.StartDialogue(trigger.dialogueNode); // Start dialogue
+                trigger.hasTriggered = true; // Mark as triggered
+                hit.gameObject.SetActive(false); // Disable trigger
             }
         }
     }
 
-    void UpdateSortingOrder()
+    void PlayFootstep() // Plays a footstep sound
     {
-        if (sr != null)
-        {
-            sr.sortingLayerName = "Foreground"; // Make sure this matches the trees
-            sr.sortingOrder = Mathf.RoundToInt(transform.position.y * -100);
-        }
+        if (footstepSource != null && footstepClip != null) footstepSource.PlayOneShot(footstepClip);
     }
 
-    void DetectDialogueTriggers()
+    public void ToggleCursor(bool toggle) // Locks/unlocks cursor
     {
-        Collider2D hit = Physics2D.OverlapCircle(transform.position, triggerRadius, triggerLayer);
-
-        if (hit == null) return;
-
-        YarnTriggerZone trigger = hit.GetComponent<YarnTriggerZone>();
-        if (trigger != null && !trigger.hasTriggered)
-        {
-            DialogueRunner runner = FindObjectOfType<DialogueRunner>();
-            if (runner != null && !runner.IsDialogueRunning)
-            {
-                runner.StartDialogue(trigger.dialogueNode);
-                trigger.hasTriggered = true;
-                hit.gameObject.SetActive(false);
-            }
-        }
-    }
-
-    void PlayFootstep()
-    {
-        if (footstepSource != null && footstepClip != null)
-        {
-            footstepSource.PlayOneShot(footstepClip);
-        }
-    }
-
-    public void ToggleCursor(bool toggle)
-    {
-        Cursor.lockState = toggle ? CursorLockMode.None : CursorLockMode.Locked;
-        Cursor.visible = toggle;
+        Cursor.lockState = toggle ? CursorLockMode.None : CursorLockMode.Locked; // Toggle lock
+        Cursor.visible = toggle; // Toggle visibility
     }
 }

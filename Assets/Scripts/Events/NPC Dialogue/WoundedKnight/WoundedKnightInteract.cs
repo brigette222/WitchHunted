@@ -3,49 +3,36 @@ using Yarn.Unity;
 
 public class WoundedKnightInteract : MonoBehaviour
 {
-    public string yarnNodeName = "WoundedStart";
-    public ItemData healingSalve;
+    public string yarnNodeName = "WoundedStart"; // The Yarn node to start when interacting
+    public ItemData healingSalve; // Reference to the healing salve item
 
-    public float detectionRadius = 1.5f;
-    public LayerMask playerLayer;
+    public float detectionRadius = 1.5f; // Distance required to interact
+    public LayerMask playerLayer; // LayerMask defining what counts as player
 
-    void Update()
+    void Update() // Called every frame
     {
-        Collider2D hit = Physics2D.OverlapCircle(transform.position, detectionRadius, playerLayer);
+        Collider2D hit = Physics2D.OverlapCircle(transform.position, detectionRadius, playerLayer); // Check for player in range
 
-        if (hit != null && hit.CompareTag("Player") && Input.GetKeyDown(KeyCode.E))
+        if (hit != null && hit.CompareTag("Player") && Input.GetKeyDown(KeyCode.E)) // If player is in range and presses E
         {
-            Debug.Log("[WoundedKnightInteract] Player in range and pressed E.");
+            DialogueRunner runner = FindObjectOfType<DialogueRunner>(); // Find DialogueRunner in scene
 
-            DialogueRunner runner = FindObjectOfType<DialogueRunner>();
-
-            if (runner != null && !runner.IsDialogueRunning)
+            if (runner != null && !runner.IsDialogueRunning) // Ensure runner exists and no dialogue is running
             {
-                Debug.Log("[WoundedKnightInteract] DialogueRunner found.");
-
-                if (Inventory.instance != null && healingSalve != null)
+                if (Inventory.instance != null && healingSalve != null) // Check inventory and healing salve reference
                 {
-                    Debug.Log($"[WoundedKnightInteract] Checking for healing salve: {healingSalve.name}, ID {healingSalve.GetInstanceID()}");
-
-                    bool hasSalve = Inventory.instance.HasItems(healingSalve, 1);
-                    Debug.Log($"[WoundedKnightInteract] Player has healing salve? {hasSalve}");
-
-                    runner.VariableStorage.SetValue("$has_salve", hasSalve);
-                }
-                else
-                {
-                    Debug.LogWarning("[WoundedKnightInteract] Inventory or healingSalve reference is missing!");
+                    bool hasSalve = Inventory.instance.HasItems(healingSalve, 1); // Check if player has healing salve
+                    runner.VariableStorage.SetValue("$has_salve", hasSalve); // Set Yarn variable for dialogue logic
                 }
 
-                runner.StartDialogue(yarnNodeName);
-                Debug.Log($"[WoundedKnightInteract] Starting node: {yarnNodeName}");
+                runner.StartDialogue(yarnNodeName); // Start Yarn dialogue
             }
         }
     }
 
-    void OnDrawGizmosSelected()
+    void OnDrawGizmosSelected() // Draws gizmo in editor when object is selected
     {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, detectionRadius);
+        Gizmos.color = Color.red; // Set gizmo color to red
+        Gizmos.DrawWireSphere(transform.position, detectionRadius); // Draw a circle showing interaction radius
     }
 }

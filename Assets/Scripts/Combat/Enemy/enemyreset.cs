@@ -2,19 +2,12 @@ using UnityEngine;
 
 public class enemyreset : MonoBehaviour
 {
-    void Start()
+    void Start() // Called once when the object is initialized
     {
-        // Resume the game if paused
-        if (PauseManager.Instance != null && PauseManager.Instance.IsAnyPaused())
-        {
-            PauseManager.Instance.Resume();
-        }
+        if (PauseManager.Instance != null && PauseManager.Instance.IsAnyPaused()) // If game is paused
+            PauseManager.Instance.Resume(); // Resume the game
 
-        // Reset all enemy walkers so they start moving again
-        EnemyWalker[] allEnemies = FindObjectsOfType<EnemyWalker>();
-        foreach (EnemyWalker enemy in allEnemies)
-        {
-            enemy.ResetEnemy();
-        }
+        EnemyWalker[] allEnemies = FindObjectsOfType<EnemyWalker>(); // Find all EnemyWalker components in the scene
+        foreach (EnemyWalker enemy in allEnemies) enemy.ResetEnemy(); // Reset each enemy so they start moving again
     }
 }
